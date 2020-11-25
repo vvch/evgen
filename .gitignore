@@ -1,0 +1,9 @@
+settings_local.py
+.env
+
+venv/*
+
+__pycache__
+*.pyc
+*.bak
+.pytest_cache

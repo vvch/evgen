@@ -1,0 +1,165 @@
+import sys
+import numpy as np
+import scipy.interpolate
+import logging as logger
+
+sys.path.append('/media/vitaly/work/work/jlab/clasfw')
+
+import hep
+import hep.amplitudes
+
+
+class InterpSigma:
+    def __init__(self, Amplitude, model, channel):
+        data = Amplitude.query.filter_by(
+            model=model,
+            channel=channel,
+        ).values(
+            Amplitude.q2,
+            Amplitude.w,
+            Amplitude.cos_theta,
+            # Amplitude.H1,
+            Amplitude.H1r, Amplitude.H1j,
+            Amplitude.H2r, Amplitude.H2j,
+            Amplitude.H3r, Amplitude.H3j,
+            Amplitude.H4r, Amplitude.H4j,
+            Amplitude.H5r, Amplitude.H5j,
+            Amplitude.H6r, Amplitude.H6j,
+        )
+        t = np.array(list(data))
+        if not len(t):
+            abort(404)  #  TODO: more friendly and informative error message
+
+        t = t.T
+        self.points = t[0:3].T
+
+         # fixme: ugly temporary stub
+        self.data = np.array([
+            np.array([
+                complex(*c)
+                    for c in
+                        zip(*[iter(p)] * 2)  #  pairwise
+            ])
+                for p in t[3:3+12].T ] )
+
+        logger.info('Data loaded')
+        logger.debug(f'SHAPE OF POINTS: {self.points.shape}')
+        logger.debug(f'POINTS:\n{self.points}')
+        logger.debug(f'SHAPE OF DATA: {self.data.shape}')
+        logger.debug(f'DATA:\n{self.data}')
+
+
+    def interp_H(self, q2, w, cos_theta):
+        grid_q2, grid_w, grid_cθ = np.array(np.meshgrid(
+            q2, w, cos_theta
+        ))
+        # )).transpose((0, 2, 1))
+
+        grid_R = scipy.interpolate.griddata(
+            self.points, self.data,
+            (grid_q2, grid_w, grid_cθ),
+            method='linear')
+        return grid_R
+
+    def interp_R(self, q2, w, cos_theta):
+        grid_R = self.interp_H(q2, w, cos_theta)
+        grid_R = np.apply_along_axis(
+            hep.amplitudes.ampl_to_R, 3, grid_R,  #  3rd axis of grid_R with amplitudes
+            # np.sum, 3, grid_R,
+        )
+        #grid_R = grid_R[:,:,:,self.qu_index]
+        return grid_R
+
+    def interp_dsigma(self, q2, w, cos_theta, phi, eps_T, h):
+        def ampl_to_dsigma(H):
+            return hep.amplitudes.H_to_dsigma(q2, w, eps_T, phi, h, H)
+        grid_H = self.interp_H(q2, w, cos_theta)
+        grid_dsig = np.apply_along_axis(
+            ampl_to_dsigma, 3, grid_H,  #  3rd axis of grid_H with amplitudes
+            # np.sum, 3, grid_R,
+        )
+        return grid_dsig
+
+
+    def dsigma_minmax(self, Ebeam, h):
+        raise RuntimeError("Not implemented yet")
+
+
+if __name__=="__main__":
+
+    logger.basicConfig(level=logger.DEBUG)
+    #logger.basicConfig(level=logger.INFO)
+
+    from dotenv import load_dotenv, find_dotenv
+    load_dotenv(find_dotenv())
+
+    import coloredlogs
+    coloredlogs.install()
+
+
+    #from .models import Amplitude
+    from clasfw.models import Amplitude, Model, Channel
+
+    Q2 = 1.0
+    W  = 1.5
+    E_beam = 10.6
+
+    from clasfw.app import create_app
+    app = create_app()
+    ampl_pi0p = None
+    with app.test_request_context():
+        model = Model.query.filter_by(name='maid').one()
+        channel = Channel.query.filter_by(name='pi0 p').one()
+        ampl_pi0p = InterpSigma(Amplitude, model, channel)
+
+        cos_theta=1
+        print(f'W: {W},\tQ2: {Q2},\tcos_theta={cos_theta}')
+        H = Amplitude.query.filter_by(
+            model=model,
+            channel=channel,
+            q2=Q2,
+            w=W,
+            cos_theta=cos_theta,
+        ).one().H
+        print("H:\n", H)
+        R = hep.amplitudes.ampl_to_R(H)
+        print("R:\n", R)
+        interp = ampl_pi0p.interp_R(Q2, W, cos_theta)
+        print(interp)
+
+    #cos_theta = np.linspace(-1, 1, 10)
+    ε = 0.0000001
+    cos_theta = np.arange(-1, 1 +ε, 0.2)
+    #cos_theta = 0
+    #cos_theta = 1
+    grid_R = ampl_pi0p.interp_R(Q2, W, cos_theta )
+    print(f'SHAPE OF R: {grid_R.shape}')
+    print(f'R: {grid_R}')
+
+    qu_index = 0
+    grid_R = grid_R[:,:,:,qu_index]
+
+    print(f'SHAPE OF R: {grid_R.shape}')
+    print(f'R: {grid_R}')
+
+    eps_T = hep.ε_T(W, Q2, E_beam)
+    phi = np.deg2rad(np.linspace(0, 360, 12+1))
+
+    grid_dsig = ampl_pi0p.interp_dsigma(Q2, W, cos_theta, phi, eps_T, h=1)
+    print(grid_dsig.shape)
+    #print(grid_dsig[0,0])
+
+    #sys.exit()
+
+    import plotly.graph_objects as go
+    fig = go.Figure()
+    fig.add_trace(go.Surface(
+        x=phi,
+        y=cos_theta,
+        z=grid_dsig[0,0],
+    ))
+    #fig.add_trace(go.Scatter(
+        #x=cos_theta,
+        #y=grid_R.flatten(),
+    #))
+    fig.show()
