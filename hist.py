@@ -31,10 +31,12 @@ class Hists4:
         self.h_W.Fill(W)
         self.h_Q2.Fill(Q2)
 
-    def Draw(self):
+    def CreateCanvas(self):
         self.c = TCanvas("c", "Events Histograms",
             1280, 1080)
         self.c.Divide(2, 2)
+
+    def Draw(self):
         self.c.cd(1)
         self.h_WQ2.Draw("COL")
         self.c.cd(2)
@@ -46,6 +48,7 @@ class Hists4:
 
     def save(self, fname):
         gROOT.SetBatch(True)
+        self.CreateCanvas()
         self.Draw()
         self.c.Print(fname)
 
