@@ -1,7 +1,9 @@
+#!/usr/bin/python3
 import sys
 import numpy as np
 import scipy.interpolate
-import logging as logger
+import logging
+logger = logging.getLogger(__name__)
 
 sys.path.append('/media/vitaly/work/work/jlab/clasfw')
 
@@ -33,7 +35,7 @@ class InterpSigma:
         t = t.T
         self.points = t[0:3].T
 
-         # fixme: ugly temporary stub
+        # fixme: ugly temporary stub
         self.data = np.array([
             np.array([
                 complex(*c)
@@ -85,10 +87,32 @@ class InterpSigma:
         raise RuntimeError("Not implemented yet")
 
 
-if __name__=="__main__":
 
-    logger.basicConfig(level=logger.DEBUG)
-    #logger.basicConfig(level=logger.INFO)
+class InterpSigmaLinearND(InterpSigma):
+    def __init__(self, Amplitude, model, channel):
+        super().__init__(Amplitude, model, channel)
+        from scipy.interpolate.interpnd import _ndim_coords_from_arrays
+        points = _ndim_coords_from_arrays(self.points)
+        self.interpolator = scipy.interpolate.LinearNDInterpolator(
+            points, self.data,
+        )
+        logger.info('Interpolator initialized')
+
+    def interp_H(self, q2, w, cos_theta):
+        grid_q2, grid_w, grid_cθ = np.array(np.meshgrid(
+            q2, w, cos_theta
+        ))
+        # )).transpose((0, 2, 1))
+
+        grid_H = self.interpolator(
+            (grid_q2, grid_w, grid_cθ),
+        )
+        return grid_H
+
+
+if __name__=="__main__":
+    logging.basicConfig(level=logging.DEBUG)
+    #logging.basicConfig(level=logging.INFO)
 
     from dotenv import load_dotenv, find_dotenv
     load_dotenv(find_dotenv())
@@ -96,21 +120,39 @@ if __name__=="__main__":
     import coloredlogs
     coloredlogs.install()
 
+    import argparse
+    parser = argparse.ArgumentParser(
+        description='Interpolated differential cross-section 3D plot from MAID helicity amplitudes data')
+    parser.add_argument('-W', type=float,
+        default=1.5,
+        help='Final state invariant mass W, GeV')
+    parser.add_argument('-Q2', type=float,
+        default=1.0,
+        help='Photon virtuality Q^2, GeV^2')
+    parser.add_argument('--ebeam', '-E', type=float,
+        default=10.6,
+        help='Beam energy E, GeV')
+    parser.add_argument('--channel', type=str,
+        default='pi0 p',
+        help='Channel')
+    args = parser.parse_args()
+
+    Q2 = args.Q2
+    W  = args.W
+    E_beam = args.ebeam
+    channel_name = args.channel
 
     #from .models import Amplitude
     from clasfw.models import Amplitude, Model, Channel
-
-    Q2 = 1.0
-    W  = 1.5
-    E_beam = 10.6
-
     from clasfw.app import create_app
     app = create_app()
     ampl_pi0p = None
+    channel = None
     with app.test_request_context():
         model = Model.query.filter_by(name='maid').one()
-        channel = Channel.query.filter_by(name='pi0 p').one()
+        channel = Channel.query.filter_by(name=channel_name).one()
         ampl_pi0p = InterpSigma(Amplitude, model, channel)
+        #ampl_pi0p = InterpSigmaLinearND(Amplitude, model, channel)
 
         cos_theta=1
         print(f'W: {W},\tQ2: {Q2},\tcos_theta={cos_theta}')
@@ -152,12 +194,22 @@ if __name__=="__main__":
     #sys.exit()
 
     import plotly.graph_objects as go
-    fig = go.Figure()
-    fig.add_trace(go.Surface(
+    fig = go.Figure(
+        layout_scene_xaxis_title='φ, rad',
+        layout_scene_yaxis_title='cos θ',
+        layout_scene_zaxis_title='dσ/dΩ, µb',
+        layout_title=f'{channel.name}: Q² = {Q2} GeV², W = {W} GeV',
+    )
+    fig.add_surface(
         x=phi,
         y=cos_theta,
         z=grid_dsig[0,0],
-    ))
+        hovertemplate=
+            "φ: %{x} rad<br>"
+            "cos<i>θ</i>: %{y}<br>"
+            "dσ/dΩ: %{z} μb/sr"
+            "<extra></extra>",
+    )
     #fig.add_trace(go.Scatter(
         #x=cos_theta,
         #y=grid_R.flatten(),
