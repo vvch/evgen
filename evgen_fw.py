@@ -2,14 +2,14 @@
 import sys
 import numpy as np
 import logging
-logger = logging
+logger = logging.getLogger(__name__)
 
 from evgen import EventGeneratorBase
 
 sys.path.append('/media/vitaly/work/work/jlab/clasfw')
 
 import hep
-from sig_interpolate import InterpSigma
+from sig_interpolate import InterpSigma, InterpSigmaLinearND
 
 
 class EventGeneratorFW(EventGeneratorBase):
@@ -30,14 +30,14 @@ class EventGeneratorFW(EventGeneratorBase):
             channel = Channel.query.filter_by(
                 name=self.channel
             ).one()
-            self.dsigma = InterpSigma(Amplitude, model, channel)
+            #self.dsigma = InterpSigma(Amplitude, model, channel)
+            self.dsigma = InterpSigmaLinearND(Amplitude, model, channel)
 
     def get_max_dsigma(self):
         # TODO!
        return self.dsigma_max
 
     def get_dsigma(self, W, Q2, cos_theta, phi):
-        #Eb = 10.6  #  GeV
         Eb = self.ebeam
         h = 1
         eps_T = hep.ε_T(W, Q2, Eb)
@@ -49,10 +49,14 @@ if __name__=='__main__':
     import yaml
     from pathlib import Path
 
-    logger.basicConfig(level=logging.DEBUG)
-    #logger.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.DEBUG)
+    #logging.basicConfig(level=logging.INFO)
+
+    from dotenv import load_dotenv, find_dotenv
+    load_dotenv(find_dotenv())
+
     import coloredlogs
-    coloredlogs.install()
+    coloredlogs.install(fmt='%(asctime)s %(levelname)s %(message)s')
 
     import argparse
 
@@ -61,17 +65,25 @@ if __name__=='__main__':
     parser.add_argument('--events', '-n', type=int,
         help='Number of events to generate')
     parser.add_argument('--ebeam', '-E', type=float,
-        help='Beam energy')
+        help='Beam energy, GeV')
     parser.add_argument('--q2min', type=float,
-        help='Q^2 min')
+        help='Q^2 min, GeV^2')
     parser.add_argument('--q2max', type=float,
-        help='Q^2 max')
+        help='Q^2 max, GeV^2')
+    parser.add_argument('--wmin', type=float,
+        help='W min, GeV')
+    parser.add_argument('--wmax', type=float,
+        help='W max, GeV')
+    parser.add_argument('--channel', type=str,
+        help='Channel')
+    parser.add_argument('--output', '-o', type=str,
+        default='wq2.dat',
+        help='Output file name')
     args = parser.parse_args()
-    #print(args)
 
     from estimate_time import EstimateTime
     #from hist_root import Hists4
-    logger.info("Modules loaded")
+    logger.debug("Modules loaded")
 
 
     with open('evgen.yaml') as f:
@@ -82,8 +94,8 @@ if __name__=='__main__':
     logger.info(conf)
 
     EvGen = EventGeneratorFW(conf)
-    #EvGen.events = 300
     timer = EstimateTime(EvGen.events)
+    timer.min_interval_to_output = 5  #  sec
     #hist = Hists4()
 
     evs = []
@@ -93,13 +105,15 @@ if __name__=='__main__':
         #hist.Fill(W, Q2)
 
         timer.update()
-        print("Counter: {}\tElapsed: {:8}\t Estimated: {:8}\tPer event: {}".format(
-            timer.counter,
-            timer.elapsed,
-            timer.estimated,
-            timer.elapsed_s / timer.counter))
+        if timer.may_output():
+            print("{:3.0f}%\tCounter: {}\tElapsed: {:8}\t Estimated: {:8}\tPer 1000 events: {:.3g}".format(
+                timer.percent, timer.counter,
+                timer.elapsed, timer.estimated,
+                (timer.elapsed_s / timer.counter)*1000
+            ))
 
     print("Generated: {} events, time: {}".format(
         len(evs), timer.elapsed))
     #hist.save()
-    np.savetxt('wq2.dat', evs)
+    np.savetxt(args.output, evs)
+    logger.debug("Done")
