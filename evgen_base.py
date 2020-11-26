@@ -1,5 +1,4 @@
 #!/usr/bin/python3
-import sys
 import numpy as np
 import logging
 logger = logging.getLogger(__name__)
@@ -49,11 +48,15 @@ class EventGeneratorApp:
         import yaml
         from pathlib import Path
 
-        from dotenv import load_dotenv, find_dotenv
-        load_dotenv(find_dotenv())
-
-        import coloredlogs
-        coloredlogs.install(fmt='%(asctime)s %(levelname)s %(message)s')
+        try:
+            from dotenv import load_dotenv, find_dotenv
+            load_dotenv(find_dotenv())
+            import coloredlogs
+            coloredlogs.install(
+                level=log_level,
+                fmt='%(asctime)s %(levelname)s %(message)s')
+        except ModuleNotFoundError:
+            pass
 
         import argparse
 
@@ -80,7 +83,7 @@ class EventGeneratorApp:
 
         with open('evgen.yaml') as f:
             self.conf = yaml.load(f)
-        for attr in 'events ebeam wmin wmax q2min q2max'.split():
+        for attr in 'events ebeam channel wmin wmax q2min q2max'.split():
             if hasattr(self.args, attr) and getattr(self.args, attr, None) is not None:
                 self.conf[attr] = getattr(self.args, attr)
         logger.info(self.conf)
@@ -99,7 +102,7 @@ class EventGeneratorApp:
 
             timer.update()
             if timer.may_output():
-                print("{:3.0f}%\tCounter: {}\tElapsed: {:8}\t Estimated: {:8}\tPer 1000 events: {:.3g}".format(
+                print("{:3.0f}%\tEvents: {}\tElapsed: {:8}\t Estimated: {:8}\tPer 1000 events: {:.3g}".format(
                     timer.percent, timer.counter,
                     timer.elapsed, timer.estimated,
                     (timer.elapsed_s / timer.counter)*1000
@@ -119,4 +122,7 @@ if __name__=='__main__':
 
         #def get_dsigma(self, W, Q2, cos_theta, phi):
 
-    EventGeneratorApp(EventGeneratorBase, log_level=logging.DEBUG).run()
+    EventGeneratorApp(
+        EventGeneratorBase,
+        log_level=logging.DEBUG
+    ).run()

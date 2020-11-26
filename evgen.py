@@ -13,11 +13,12 @@ logger = logging.getLogger(__name__)
 class EventGeneratorFW(EventGeneratorBase):
     def __init__(self, conf):
         super().__init__(conf)
+        logger.info("Loading data")
         self.load_data()
         self.dsigma_max = 10  #  µb/sr
-        logger.info("EvGen initialized.")
+        logger.info("EvGen initialized")
         logger.info(f"dsigma_max = {self.dsigma_max}")
-        logger.info(f"events = {self.events}")
+        logger.debug(f"events = {self.events}")
 
     def load_data(self):
         from clasfw.models import Amplitude, Model, Channel
@@ -43,4 +44,8 @@ class EventGeneratorFW(EventGeneratorBase):
 
 
 if __name__=='__main__':
-    EventGeneratorApp(EventGeneratorFW, log_level=logging.DEBUG).run()
+    EventGeneratorApp(
+        EventGeneratorFW,
+        log_level=logging.INFO
+        #log_level=logging.DEBUG
+    ).run()
