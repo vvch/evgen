@@ -111,14 +111,22 @@ class InterpSigmaLinearND(InterpSigma):
 
 
 if __name__=="__main__":
-    logging.basicConfig(level=logging.DEBUG)
-    #logging.basicConfig(level=logging.INFO)
+    #logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(level=logging.INFO)
 
-    from dotenv import load_dotenv, find_dotenv
-    load_dotenv(find_dotenv())
-
-    import coloredlogs
-    coloredlogs.install()
+    try:
+        from dotenv import load_dotenv, find_dotenv
+        load_dotenv(find_dotenv())
+    except ModuleNotFoundError:
+        pass
+    try:
+        import coloredlogs
+        coloredlogs.install(
+            #level=logging.DEBUG,
+            level=logging.INFO,
+            fmt='%(asctime)s %(levelname)s %(message)s')
+    except ModuleNotFoundError:
+        pass
 
     import argparse
     parser = argparse.ArgumentParser(
@@ -137,10 +145,12 @@ if __name__=="__main__":
         help='Channel')
     args = parser.parse_args()
 
-    Q2 = args.Q2
     W  = args.W
+    Q2 = args.Q2
     E_beam = args.ebeam
     channel_name = args.channel
+
+    logger.info('Loading data')
 
     #from .models import Amplitude
     from clasfw.models import Amplitude, Model, Channel
@@ -151,47 +161,45 @@ if __name__=="__main__":
     with app.test_request_context():
         model = Model.query.filter_by(name='maid').one()
         channel = Channel.query.filter_by(name=channel_name).one()
-        ampl_pi0p = InterpSigma(Amplitude, model, channel)
-        #ampl_pi0p = InterpSigmaLinearND(Amplitude, model, channel)
+        #ampl_pi0p = InterpSigma(Amplitude, model, channel)
+        ampl_pi0p = InterpSigmaLinearND(Amplitude, model, channel)
 
-        cos_theta=1
-        print(f'W: {W},\tQ2: {Q2},\tcos_theta={cos_theta}')
-        H = Amplitude.query.filter_by(
-            model=model,
-            channel=channel,
-            q2=Q2,
-            w=W,
-            cos_theta=cos_theta,
-        ).one().H
-        print("H:\n", H)
-        R = hep.amplitudes.ampl_to_R(H)
-        print("R:\n", R)
-        interp = ampl_pi0p.interp_R(Q2, W, cos_theta)
-        print(interp)
+        if 1:
+            cos_theta=1
+            print(f'W: {W},\tQ2: {Q2},\tcos_theta={cos_theta}')
+            H = Amplitude.query.filter_by(
+                model=model,
+                channel=channel,
+                q2=Q2,
+                w=W,
+                cos_theta=cos_theta,
+            ).one().H
+            print("H:\n", H)
+            R = hep.amplitudes.ampl_to_R(H)
+            print("R:\n", R)
+            interp = ampl_pi0p.interp_R(Q2, W, cos_theta)
+            print(interp)
 
     #cos_theta = np.linspace(-1, 1, 10)
     ε = 0.0000001
-    cos_theta = np.arange(-1, 1 +ε, 0.2)
+    cos_theta = np.arange(-1, 1 +ε, 0.01)
     #cos_theta = 0
     #cos_theta = 1
     grid_R = ampl_pi0p.interp_R(Q2, W, cos_theta )
-    print(f'SHAPE OF R: {grid_R.shape}')
-    print(f'R: {grid_R}')
+    logger.debug(f'SHAPE OF R: {grid_R.shape}')
+    logger.debug(f'R: {grid_R}')
 
     qu_index = 0
     grid_R = grid_R[:,:,:,qu_index]
 
-    print(f'SHAPE OF R: {grid_R.shape}')
-    print(f'R: {grid_R}')
+    logger.debug(f'SHAPE OF R: {grid_R.shape}')
+    logger.debug(f'R: {grid_R}')
 
     eps_T = hep.ε_T(W, Q2, E_beam)
-    phi = np.deg2rad(np.linspace(0, 360, 12+1))
+    phi = np.deg2rad(np.linspace(0, 360, 120+1))
 
     grid_dsig = ampl_pi0p.interp_dsigma(Q2, W, cos_theta, phi, eps_T, h=1)
-    print(grid_dsig.shape)
-    #print(grid_dsig[0,0])
-
-    #sys.exit()
+    logger.debug(grid_dsig.shape)
 
     import plotly.graph_objects as go
     fig = go.Figure(
@@ -209,6 +217,7 @@ if __name__=="__main__":
             "cos<i>θ</i>: %{y}<br>"
             "dσ/dΩ: %{z} μb/sr"
             "<extra></extra>",
+        colorscale='BlueRed',
     )
     #fig.add_trace(go.Scatter(
         #x=cos_theta,

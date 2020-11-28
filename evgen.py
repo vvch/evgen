@@ -10,12 +10,12 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-class EventGeneratorFW(EventGeneratorBase):
+class EventGeneratorMAID(EventGeneratorBase):
+    description = 'Event generator from MAID helicity amplitudes'
     def __init__(self, conf):
         super().__init__(conf)
         logger.info("Loading data")
         self.load_data()
-        self.dsigma_max = 10  #  µb/sr
         logger.info("EvGen initialized")
         logger.info(f"dsigma_max = {self.dsigma_max}")
         logger.debug(f"events = {self.events}")
@@ -32,20 +32,19 @@ class EventGeneratorFW(EventGeneratorBase):
             #self.dsigma = InterpSigma(Amplitude, model, channel)
             self.dsigma = InterpSigmaLinearND(Amplitude, model, channel)
 
-    def get_max_dsigma(self):
-        # TODO!
-       return self.dsigma_max
-
     def get_dsigma(self, W, Q2, cos_theta, phi):
-        Eb = self.ebeam
-        h = 1
-        eps_T = hep.ε_T(W, Q2, Eb)
-        return self.dsigma.interp_dsigma(Q2, W, cos_theta, phi, eps_T, h)
+        return self.dsigma.interp_dsigma(
+            Q2, W, cos_theta, phi,
+            hep.ε_T(W, Q2, self.ebeam), h=1)
 
 
 if __name__=='__main__':
-    EventGeneratorApp(
-        EventGeneratorFW,
-        log_level=logging.INFO
-        #log_level=logging.DEBUG
-    ).run()
+    try:
+        EventGeneratorApp(
+            EventGeneratorMAID,
+            log_level=logging.INFO
+            #log_level=logging.DEBUG
+        ).run()
+    except (NotImplementedError, ModuleNotFoundError) as e:
+        logger.fatal(e)
+        sys.exit(1)

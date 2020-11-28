@@ -3,7 +3,7 @@ import numpy as np
 import logging
 logger = logging.getLogger(__name__)
 
-from evgen import EventGeneratorApp, EventGeneratorFW
+from evgen import EventGeneratorApp, EventGeneratorMAID
 from hist import Hists4
 
 
@@ -11,7 +11,7 @@ class EventGeneratorApp(EventGeneratorApp):
     def run(self):
         from estimate_time import EstimateTime
         timer = EstimateTime(self.evgen.events)
-        timer.min_interval_to_output = 2  #  sec
+        timer.min_interval_to_output = 1  #  sec
         hist = Hists4()
         hist.CreateCanvas()
         hist.Draw()
@@ -41,7 +41,11 @@ class EventGeneratorApp(EventGeneratorApp):
 
 if __name__=='__main__':
 
-    EventGeneratorApp(
-        EventGeneratorFW,
-        log_level=logging.INFO
-    ).run()
+    try:
+        EventGeneratorApp(
+            EventGeneratorMAID,
+            log_level=logging.INFO
+        ).run()
+    except (NotImplementedError, ModuleNotFoundError) as e:
+        logger.fatal(e)
+        sys.exit(1)
