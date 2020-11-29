@@ -33,8 +33,7 @@ class EventGeneratorFW(EventGeneratorBase):
     def get_dsigma(self, event):
         W, Q2, cos_theta, phi = event
         return self.dsigma.interp_dsigma(
-            #W, Q2, cos_theta, phi,
-            Q2, W, cos_theta, phi,
+            W, Q2, cos_theta, phi,
             hep.ε_T(W, Q2, self.ebeam), h=1)
 
 
