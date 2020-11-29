@@ -26,13 +26,15 @@ class EventGeneratorApp(EventGeneratorApp):
                 events = []
                 hist.Draw()
                 hist.c.Update()
-                print("{:3.0f}%\tEvents: {}\tElapsed: {:8}\t Estimated: {:8}\tSpeed: {:g}/min".format(
-                    timer.percent, timer.counter,
-                    timer.elapsed, timer.estimated,
-                    timer.speed*60
+                logger.info(
+                    "{:3.0f}%\tEvents: {}\tElapsed: {:8}\t Estimated: {:8}\tSpeed: {:3g}/min"
+                    .format(
+                        timer.percent, timer.counter,
+                        timer.elapsed, timer.estimated,
+                        timer.speed*60
                 ))
 
-        #print("Generated: {} events, time: {}".format(
+        #logger.info("Generated: {} events, time: {}".format(
             #len(events), timer.elapsed))
         hist.save('events_hist4.png')
         #np.savetxt(self.args.output, events)

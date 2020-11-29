@@ -1,38 +1,32 @@
 #!/usr/bin/python3
 import sys
+import logging
+logger = logging.getLogger(__name__)
+
 from evgen_base import EventGeneratorBase, EventGeneratorApp
 
 sys.path.append('/media/vitaly/work/work/jlab/clasfw')
 
-import hep
 from sig_interpolate import InterpSigmaLinearND
-import logging
-logger = logging.getLogger(__name__)
 
 
 class EventGeneratorFW(EventGeneratorBase):
-    description = 'Event generator from MAID helicity amplitudes'
+    """Event generator from helicity amplitudes"""
     def __init__(self, conf):
         super().__init__(conf)
         logger.info("Loading data")
-        self.load_data()
-        logger.info("EvGen initialized")
-
-    def load_data(self):
         from clasfw.models import Amplitude, Model, Channel
         from clasfw.app import create_app
         app = create_app()
         with app.test_request_context():
-            model = Model.by_name('maid')
-            channel = Channel.by_name(self.channel)
-            #self.dsigma = InterpSigma(Amplitude, model, channel)
-            self.dsigma = InterpSigmaLinearND(Amplitude, model, channel)
+            self.dsigma = InterpSigmaLinearND(
+                Amplitude,
+                Model.by_name('maid'),
+                Channel.by_name(self.channel))
+        logger.info("EvGen initialized")
 
     def get_dsigma(self, event):
-        W, Q2, cos_theta, phi = event
-        return self.dsigma.interp_dsigma(
-            W, Q2, cos_theta, phi,
-            hep.ε_T(W, Q2, self.ebeam), h=1)
+        return self.dsigma.interp_dsigma(*event, self.ebeam, h=1)
 
 
 if __name__=='__main__':

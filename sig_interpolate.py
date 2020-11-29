@@ -72,7 +72,7 @@ class InterpSigma:
         #grid_R = grid_R[:,:,:,self.qu_index]
         return grid_R
 
-    def interp_dsigma(self, w, q2, cos_theta, phi, eps_T, h):
+    def interp_dsigma_eps(self, w, q2, cos_theta, phi, eps_T, h=1):
         def ampl_to_dsigma(H):
             return hep.amplitudes.H_to_dsigma(w, q2, eps_T, phi, h, H)
         grid_H = self.interp_H(w, q2, cos_theta)
@@ -82,10 +82,13 @@ class InterpSigma:
         )
         return grid_dsig
 
+    def interp_dsigma(self, W, Q2, cos_theta, phi, Eb, h=1):
+        return self.interp_dsigma_eps(
+            W, Q2, cos_theta, phi, hep.ε_T(W, Q2, Eb), h)
 
-    def dsigma_minmax(self, Ebeam, h):
-        raise RuntimeError("Not implemented yet")
-
+    def dsigma_minmax(self, Eb, h=1):
+        raise NotImplementedError(
+            "Automatic calculation of maximum differential cross-section value not implemented yet")
 
 
 class InterpSigmaLinearND(InterpSigma):
@@ -96,7 +99,7 @@ class InterpSigmaLinearND(InterpSigma):
         self.interpolator = scipy.interpolate.LinearNDInterpolator(
             points, self.data,
         )
-        logger.info('Interpolator initialized')
+        logger.debug('Interpolator initialized')
 
     def interp_H(self, w, q2, cos_theta):
         grid_w, grid_q2, grid_cθ = np.array(np.meshgrid(
@@ -153,7 +156,6 @@ if __name__=="__main__":
 
     logger.info('Loading data')
 
-    #from .models import Amplitude
     from clasfw.models import Amplitude, Model, Channel
     from clasfw.app import create_app
     app = create_app()
@@ -178,8 +180,9 @@ if __name__=="__main__":
             print("H:\n", H)
             R = hep.amplitudes.ampl_to_R(H)
             print("R:\n", R)
-            interp = ampl_pi0p.interp_R(W, Q2, cos_theta)
-            print(interp)
+            R_interp = ampl_pi0p.interp_R(W, Q2, cos_theta)
+            print(R_interp)
+            print(R == R_interp)
 
     #cos_theta = np.linspace(-1, 1, 10)
     ε = 0.0000001
@@ -196,10 +199,9 @@ if __name__=="__main__":
     logger.debug(f'SHAPE OF R: {grid_R.shape}')
     logger.debug(f'R: {grid_R}')
 
-    eps_T = hep.ε_T(W, Q2, E_beam)
     phi = np.deg2rad(np.linspace(0, 360, 120+1))
 
-    grid_dsig = ampl_pi0p.interp_dsigma(W, Q2, cos_theta, phi, eps_T, h=1)
+    grid_dsig = ampl_pi0p.interp_dsigma(W, Q2, cos_theta, phi, E_beam, h=1)
     logger.debug(grid_dsig.shape)
 
     import plotly.graph_objects as go
