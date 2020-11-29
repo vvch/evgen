@@ -84,6 +84,7 @@ class EventGeneratorApp:
 
         import argparse
         self.parser = argparse.ArgumentParser(
+            fromfile_prefix_chars='@',
             description=self.description)
         self.parser.add_argument('--events', '-n', '-N', type=int,
             help='Number of events to generate')
@@ -148,15 +149,16 @@ class EventGeneratorApp:
         logger.debug("Done")
 
 
+class EventGeneratorTest(EventGeneratorBase):
+    """Test event generator with simple distribution function instead of real cross-section"""
+    def get_dsigma(self, event):
+        return np.sin(event.Q2*3)*np.cos(event.W*3)
+    def get_dsigma_upper(self):
+        return 1
+
+
 if __name__=='__main__':
     import sys
-
-    class EventGeneratorTest(EventGeneratorBase):
-        """Test event generator with simple distribution function instead of real cross-section"""
-        def get_dsigma(self, event):
-            return np.sin(event.Q2*3)*np.cos(event.W*3)
-        def get_upper_dsigma_limit(self):
-            return 1
 
     try:
         EventGeneratorApp(

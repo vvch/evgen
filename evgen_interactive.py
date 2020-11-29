@@ -26,7 +26,7 @@ class EventGeneratorApp(EventGeneratorApp):
                 events = []
                 hist.Draw()
                 hist.c.Update()
-                print("{:3.0f}%\tEvents: {}\tElapsed: {:8}\t Estimated: {:8}\tSpeed: {:g}".format(
+                print("{:3.0f}%\tEvents: {}\tElapsed: {:8}\t Estimated: {:8}\tSpeed: {:g}/min".format(
                     timer.percent, timer.counter,
                     timer.elapsed, timer.estimated,
                     timer.speed*60
@@ -40,7 +40,7 @@ class EventGeneratorApp(EventGeneratorApp):
 
 
 if __name__=='__main__':
-
+    import sys
     try:
         EventGeneratorApp(
             EventGeneratorFW,

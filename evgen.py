@@ -17,8 +17,6 @@ class EventGeneratorFW(EventGeneratorBase):
         logger.info("Loading data")
         self.load_data()
         logger.info("EvGen initialized")
-        logger.info(f"dsigma_upper = {self.dsigma_upper}")
-        logger.debug(f"events = {self.events}")
 
     def load_data(self):
         from clasfw.models import Amplitude, Model, Channel
