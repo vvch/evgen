@@ -16,21 +16,21 @@ class EventGeneratorBase:
             setattr(self, f, conf[f])
         self.min_dsigma = None
         self.max_dsigma = None
-        self.max_dsigma_event = None
-        self.exceed_dsigma_counter = 0
+        self.dsigma_upper_event = None
+        self.dsigma_exceed_counter = 0
         self.raw_events_counter = 0
         try:
-            self.dsigma_max = conf['dsigmamax']
+            self.dsigma_upper = conf['dsigmaupper']
         except KeyError:
-            self.dsigma_max = self.get_max_dsigma()
+            self.dsigma_upper = self.get_dsigma_upper()
 
-    def get_max_dsigma(self):
+    def get_dsigma_upper(self):
         raise NotImplementedError(
-            "Currently automatic calculation of maximum differential cross-section value in the specified range is not implemented, it should be specified as 'dsigmamax' parameter")
+            "Currently automatic calculation of maximum differential cross-section value in the specified range is not implemented, it should be specified as 'dsigmaupper' parameter")
 
-    def get_dsigma(self, W, Q2, cos_theta, phi):
+    def get_dsigma(self, event):
         raise NotImplementedError(
-            "No cross-section calculation method provided")
+            "No differential cross-section calculation method provided")
 
     def raw_event(self, size=None):
         return Event(
@@ -46,18 +46,18 @@ class EventGeneratorBase:
             self.raw_events_counter += 1
             #log.debug('COUNTER: ', counter)
             ev = self.raw_event()
-            dsigma = self.get_dsigma(*ev)
+            dsigma = self.get_dsigma(ev)
             if self.max_dsigma is None or self.max_dsigma < dsigma:
                 self.max_dsigma = dsigma
-                self.max_dsigma_event = ev
+                self.dsigma_upper_event = ev
             if self.min_dsigma is None or self.min_dsigma > dsigma:
                 self.min_dsigma = dsigma
-            if dsigma > self.dsigma_max:
-                if not self.exceed_dsigma_counter:
+            if dsigma > self.dsigma_upper:
+                if not self.dsigma_exceed_counter:
                     logger.warning(
-                        f"Cross-section {dsigma} exceeded upper limit {self.dsigma_max} mcb for {ev}. Upper limit may be specified incorrectly.")
-                self.exceed_dsigma_counter +=1
-            if np.random.rand() < dsigma / self.dsigma_max:
+                        f"Cross-section {dsigma} exceeded upper limit {self.dsigma_upper} mcb for {ev}. Upper limit may be specified incorrectly.")
+                self.dsigma_exceed_counter +=1
+            if np.random.rand() < dsigma / self.dsigma_upper:
                 counter -= 1
                 yield ev
 
@@ -85,7 +85,7 @@ class EventGeneratorApp:
         import argparse
         self.parser = argparse.ArgumentParser(
             description=self.description)
-        self.parser.add_argument('--events', '-n', type=int,
+        self.parser.add_argument('--events', '-n', '-N', type=int,
             help='Number of events to generate')
         self.parser.add_argument('--ebeam', '-E', type=float,
             help='Beam energy, GeV')
@@ -97,8 +97,8 @@ class EventGeneratorApp:
             help='Q^2 min, GeV^2')
         self.parser.add_argument('--q2max', type=float,
             help='Q^2 max, GeV^2')
-        self.parser.add_argument('--dsigmamax', type=float,
-            help='Maximum differential cross-section value, mcb')
+        self.parser.add_argument('--dsigmaupper', '-U', type=float,
+            help='Upper limit for differential cross-section value, mcb')
         self.parser.add_argument('--channel', '-C', type=str,
             choices=['pi+ n', 'pi0 p', 'pi- p', 'pi0 n'],
             help='Channel')
@@ -109,7 +109,7 @@ class EventGeneratorApp:
 
         with open('evgen.yaml') as f:
             self.conf = yaml.load(f)
-        for attr in 'events ebeam channel wmin wmax q2min q2max dsigmamax'.split():
+        for attr in 'events ebeam channel wmin wmax q2min q2max dsigmaupper'.split():
             if hasattr(self.args, attr) and getattr(self.args, attr, None) is not None:
                 self.conf[attr] = getattr(self.args, attr)
         logger.info(self.conf)
@@ -138,9 +138,11 @@ class EventGeneratorApp:
             len(events), timer.elapsed))
         logger.info(
             f"Filtered {self.evgen.raw_events_counter} differential cross-section values at all: min={self.evgen.min_dsigma}, max={self.evgen.max_dsigma}, [mcb]")
-        if self.evgen.exceed_dsigma_counter:
+        if self.evgen.dsigma_exceed_counter:
             logger.warning(
-                f"Cross-section {self.evgen.exceed_dsigma_counter} times (of {self.evgen.raw_events_counter}) exceeded upper limit {self.evgen.dsigma_max}, max={self.evgen.max_dsigma} mcb on {self.evgen.max_dsigma_event}")
+                f"Cross-section {self.evgen.dsigma_exceed_counter} times "
+                f"(of {self.evgen.raw_events_counter}, {self.evgen.dsigma_exceed_counter / self.evgen.raw_events_counter:g}%) "
+                f"exceeded upper limit {self.evgen.dsigma_upper}, max={self.evgen.max_dsigma} mcb on {self.evgen.dsigma_upper_event}")
         #hist.save()
         np.savetxt(self.args.output, events)
         logger.debug("Done")
@@ -151,9 +153,9 @@ if __name__=='__main__':
 
     class EventGeneratorTest(EventGeneratorBase):
         """Test event generator with simple distribution function instead of real cross-section"""
-        def get_dsigma(self, W, Q2, cos_theta, phi):
-            return np.sin(Q2*3)*np.cos(W*3)
-        def get_max_dsigma(self):
+        def get_dsigma(self, event):
+            return np.sin(event.Q2*3)*np.cos(event.W*3)
+        def get_upper_dsigma_limit(self):
             return 1
 
     try:

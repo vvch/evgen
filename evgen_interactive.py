@@ -3,7 +3,7 @@ import numpy as np
 import logging
 logger = logging.getLogger(__name__)
 
-from evgen import EventGeneratorApp, EventGeneratorMAID
+from evgen import EventGeneratorApp, EventGeneratorFW
 from hist import Hists4
 
 
@@ -26,10 +26,10 @@ class EventGeneratorApp(EventGeneratorApp):
                 events = []
                 hist.Draw()
                 hist.c.Update()
-                print("{:3.0f}%\tEvents: {}\tElapsed: {:8}\t Estimated: {:8}\tPer 1000 events: {:.3g}".format(
+                print("{:3.0f}%\tEvents: {}\tElapsed: {:8}\t Estimated: {:8}\tSpeed: {:g}".format(
                     timer.percent, timer.counter,
                     timer.elapsed, timer.estimated,
-                    (timer.elapsed_s / timer.counter)*1000
+                    timer.speed*60
                 ))
 
         #print("Generated: {} events, time: {}".format(
@@ -43,7 +43,7 @@ if __name__=='__main__':
 
     try:
         EventGeneratorApp(
-            EventGeneratorMAID,
+            EventGeneratorFW,
             log_level=logging.INFO
         ).run()
     except (NotImplementedError, ModuleNotFoundError) as e:

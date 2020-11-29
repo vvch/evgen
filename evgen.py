@@ -10,14 +10,14 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-class EventGeneratorMAID(EventGeneratorBase):
+class EventGeneratorFW(EventGeneratorBase):
     description = 'Event generator from MAID helicity amplitudes'
     def __init__(self, conf):
         super().__init__(conf)
         logger.info("Loading data")
         self.load_data()
         logger.info("EvGen initialized")
-        logger.info(f"dsigma_max = {self.dsigma_max}")
+        logger.info(f"dsigma_upper = {self.dsigma_upper}")
         logger.debug(f"events = {self.events}")
 
     def load_data(self):
@@ -25,15 +25,15 @@ class EventGeneratorMAID(EventGeneratorBase):
         from clasfw.app import create_app
         app = create_app()
         with app.test_request_context():
-            model = Model.query.filter_by(name='maid').one()
-            channel = Channel.query.filter_by(
-                name=self.channel
-            ).one()
+            model = Model.by_name('maid')
+            channel = Channel.by_name(self.channel)
             #self.dsigma = InterpSigma(Amplitude, model, channel)
             self.dsigma = InterpSigmaLinearND(Amplitude, model, channel)
 
-    def get_dsigma(self, W, Q2, cos_theta, phi):
+    def get_dsigma(self, event):
+        W, Q2, cos_theta, phi = event
         return self.dsigma.interp_dsigma(
+            #W, Q2, cos_theta, phi,
             Q2, W, cos_theta, phi,
             hep.ε_T(W, Q2, self.ebeam), h=1)
 
@@ -41,7 +41,7 @@ class EventGeneratorMAID(EventGeneratorBase):
 if __name__=='__main__':
     try:
         EventGeneratorApp(
-            EventGeneratorMAID,
+            EventGeneratorFW,
             log_level=logging.INFO
             #log_level=logging.DEBUG
         ).run()
