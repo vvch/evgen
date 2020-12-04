@@ -3,7 +3,7 @@ import numpy as np
 import logging
 logger = logging.getLogger(__name__)
 
-from evgen import EventGeneratorApp, EventGeneratorFW
+from evgen import EventGeneratorBase, EventGeneratorApp, EventGeneratorFW
 from hist import Hists4
 
 
@@ -11,7 +11,7 @@ class EventGeneratorApp(EventGeneratorApp):
     def run(self):
         from estimate_time import EstimateTime
         timer = EstimateTime(self.evgen.events)
-        timer.min_interval_to_output = 1  #  sec
+        timer.min_interval_to_output = self.args.interval
         hist = Hists4()
         hist.CreateCanvas()
         hist.Draw()

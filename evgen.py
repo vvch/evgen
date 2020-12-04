@@ -30,12 +30,4 @@ class EventGeneratorFW(EventGeneratorBase):
 
 
 if __name__=='__main__':
-    try:
-        EventGeneratorApp(
-            EventGeneratorFW,
-            log_level=logging.INFO
-            #log_level=logging.DEBUG
-        ).run()
-    except (NotImplementedError, ModuleNotFoundError) as e:
-        logger.fatal(e)
-        sys.exit(1)
+    EventGeneratorApp.launch(EventGeneratorFW)

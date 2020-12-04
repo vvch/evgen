@@ -1,0 +1,14 @@
+[MESSAGES CONTROL]
+
+disable =
+    bad-indentation,
+    invalid-name,
+#    missing-module-docstring,
+    missing-function-docstring,
+#    missing-class-docstring,
+    fixme,
+    bad-whitespace,
+    bad-continuation,
+    too-few-public-methods
+    
+output-format = colorized

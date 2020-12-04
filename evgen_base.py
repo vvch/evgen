@@ -1,8 +1,11 @@
 #!/usr/bin/python3
+import sys
 import numpy as np
+from collections import namedtuple
 import logging
 logger = logging.getLogger(__name__)
-from collections import namedtuple
+
+__author__ = "Vitaly Chesnokov"
 
 
 Event = namedtuple('Event',
@@ -10,7 +13,7 @@ Event = namedtuple('Event',
 
 
 class EventGeneratorBase:
-    """Event generator"""
+    """Abstract base event generator"""
     def __init__(self, conf):
         for f in 'wmin wmax q2min q2max ebeam channel events'.split():
             setattr(self, f, conf[f])
@@ -108,6 +111,9 @@ class EventGeneratorApp:
         self.parser.add_argument('--channel', '-C', type=str,
             choices=['pi+ n', 'pi0 p', 'pi- p', 'pi0 n'],
             help='Channel')
+        self.parser.add_argument('--interval', '-T', type=float,
+            default=1,
+            help='Output time interval, seconds')
         self.parser.add_argument('--output', '-o', type=str,
             default='wq2.dat',
             help='Output file name')
@@ -126,7 +132,7 @@ class EventGeneratorApp:
         #hist = Hists4()
         from estimate_time import EstimateTime
         timer = EstimateTime(self.evgen.events)
-        timer.min_interval_to_output = 5  #  sec
+        timer.min_interval_to_output = self.args.interval
 
         events = []
         for event in self.evgen.generate_events():
@@ -158,6 +164,14 @@ class EventGeneratorApp:
         np.savetxt(self.args.output, events)
         logger.debug("Done")
 
+    @classmethod
+    def launch(cls, evgenclass, log_level=logging.INFO):
+        try:
+            cls(evgenclass, log_level).run()
+        except (NotImplementedError, ModuleNotFoundError) as e:
+            logger.fatal(e)
+            sys.exit(1)
+
 
 class EventGeneratorTest(EventGeneratorBase):
     """Test event generator with simple distribution function instead of real cross-section"""
@@ -168,13 +182,4 @@ class EventGeneratorTest(EventGeneratorBase):
 
 
 if __name__=='__main__':
-    import sys
-
-    try:
-        EventGeneratorApp(
-            EventGeneratorTest,
-            log_level=logging.DEBUG
-        ).run()
-    except (NotImplementedError, ModuleNotFoundError) as e:
-        logger.fatal(e)
-        sys.exit(1)
+    EventGeneratorApp.launch(EventGeneratorTest, logging.DEBUG)
