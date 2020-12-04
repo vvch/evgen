@@ -19,7 +19,7 @@ class EventGeneratorBase:
             setattr(self, f, conf[f])
         self.min_dsigma = None
         self.max_dsigma = None
-        self.dsigma_upper_event = None
+        self.max_dsigma_event = None
         self.dsigma_exceed_counter = 0
         self.raw_events_counter = 0
         try:
@@ -55,7 +55,7 @@ class EventGeneratorBase:
             dsigma = self.get_dsigma(ev)
             if self.max_dsigma is None or self.max_dsigma < dsigma:
                 self.max_dsigma = dsigma
-                self.dsigma_upper_event = ev
+                self.max_dsigma_event = ev
             if self.min_dsigma is None or self.min_dsigma > dsigma:
                 self.min_dsigma = dsigma
             if dsigma > self.dsigma_upper:
@@ -159,7 +159,7 @@ class EventGeneratorApp:
                 f" (of {self.evgen.raw_events_counter},"
                 f" {self.evgen.dsigma_exceed_counter / self.evgen.raw_events_counter:3g}%)"
                 f" exceeded upper limit {self.evgen.dsigma_upper},"
-                f" max={self.evgen.max_dsigma} mcb on {self.evgen.dsigma_upper_event}")
+                f" max={self.evgen.max_dsigma} mcb on {self.evgen.max_dsigma_event}")
         #hist.save()
         np.savetxt(self.args.output, events)
         logger.debug("Done")
