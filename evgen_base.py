@@ -29,9 +29,8 @@ class EventGeneratorBase:
 
     def get_dsigma_upper(self):
         raise NotImplementedError(
-            "Currently automatic calculation of"
-            " maximum differential cross-section value"
-            " in the specified range is not implemented,"
+            "Currently automatic calculation of maximum differential cross-section"
+            " value in the specified range is not implemented,"
             " it should be specified as 'dsigmaupper' parameter")
 
     def get_dsigma(self, event):
@@ -61,9 +60,9 @@ class EventGeneratorBase:
             if dsigma > self.dsigma_upper:
                 if not self.dsigma_exceed_counter:
                     logger.warning(
-                        f"Cross-section {dsigma} exceeded upper limit"
-                        f" {self.dsigma_upper} mcb for {ev}. "
-                        f"Upper limit may be specified incorrectly.")
+                        "Cross-section %g exceeded upper limit %g mcb for %s."
+                        " Upper limit may be specified incorrectly.",
+                        dsigma, self.dsigma_upper, str(ev))
                 self.dsigma_exceed_counter +=1
             if np.random.rand() < dsigma / self.dsigma_upper:
                 counter -= 1
@@ -72,8 +71,8 @@ class EventGeneratorBase:
 
 class EventGeneratorApp:
     """Event Generator"""
-    def __init__(self, EventGenerator, log_level=logging.INFO):
-        logging.basicConfig(level=log_level)
+    def __init__(self, EventGenerator, log_level=logging.INFO, log_fmt='%(asctime)s %(levelname)s %(message)s'):
+        logging.basicConfig(level=log_level, format=log_fmt, datefmt='%H:%M:%S')
         import yaml
         from pathlib import Path
         try:
@@ -83,10 +82,7 @@ class EventGeneratorApp:
             pass
         try:
             import coloredlogs
-            coloredlogs.install(
-                level=log_level,
-                fmt='%(asctime)s %(levelname)s %(message)s',
-                datefmt='%H:%M:%S')
+            coloredlogs.install(level=log_level, fmt=log_fmt, datefmt='%H:%M:%S')
         except ModuleNotFoundError:
             pass
 
@@ -141,25 +137,23 @@ class EventGeneratorApp:
             timer.update()
             if timer.may_output():
                 logger.info(
-                    "{:3.0f}%\tEvents: {}\tElapsed: {:8}\t Estimated: {:8}\tSpeed: {:3g}/min"
-                    .format(
+                    "%3.0f %%\tEvents: %d\tElapsed: %8s\t Estimated: %8s\tSpeed: %3g/min",
                         timer.percent, timer.counter,
                         timer.elapsed, timer.estimated,
-                        timer.speed * 60,
-                ))
+                        timer.speed * 60)
 
-        logger.info("Generated: {} events, time: {}".format(
-            len(events), timer.elapsed))
+        logger.info("Generated: %d events, time: %s", len(events), timer.elapsed)
         logger.info(
-            f"Filtered {self.evgen.raw_events_counter} differential cross-section"
-            f" values at all: min={self.evgen.min_dsigma}, max={self.evgen.max_dsigma}, [mcb]")
+            "Filtered %d differential cross-section values at all: min=%g, max=%g [mcb]",
+            self.evgen.raw_events_counter,
+            self.evgen.min_dsigma, self.evgen.max_dsigma)
         if self.evgen.dsigma_exceed_counter:
             logger.warning(
-                f"Cross-section {self.evgen.dsigma_exceed_counter} times"
-                f" (of {self.evgen.raw_events_counter},"
-                f" {self.evgen.dsigma_exceed_counter / self.evgen.raw_events_counter:3g}%)"
-                f" exceeded upper limit {self.evgen.dsigma_upper},"
-                f" max={self.evgen.max_dsigma} mcb on {self.evgen.max_dsigma_event}")
+                "Cross-section %d times (of %d, %.3g%%) exceeded upper limit %g, max=%g [mcb] on %s",
+                self.evgen.dsigma_exceed_counter, self.evgen.raw_events_counter,
+                self.evgen.dsigma_exceed_counter / self.evgen.raw_events_counter,
+                self.evgen.dsigma_upper, self.evgen.max_dsigma,
+                str(self.evgen.max_dsigma_event))
         #hist.save()
         np.savetxt(self.args.output, events)
         logger.debug("Done")

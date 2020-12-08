@@ -82,9 +82,12 @@ class InterpSigma:
         )
         return grid_dsig
 
-    def interp_dsigma(self, W, Q2, cos_theta, phi, Eb, h=1):
+    def interp_dsigma_v(self, W, Q2, cos_theta, phi, Eb, h=1):
         return self.interp_dsigma_eps(
             W, Q2, cos_theta, phi, hep.ε_T(W, Q2, Eb), h)
+
+    def interp_dsigma(self, *args, **kvargs):
+        return np.ravel(self.interp_dsigma_v(*args, **kvargs))[0]
 
     def dsigma_minmax(self, Eb, h=1):
         raise NotImplementedError(
@@ -106,11 +109,7 @@ class InterpSigmaLinearND(InterpSigma):
             w, q2, cos_theta
         ))
         # )).transpose((0, 2, 1))
-
-        grid_H = self.interpolator(
-            (grid_w, grid_q2, grid_cθ),
-        )
-        return grid_H
+        return self.interpolator((grid_w, grid_q2, grid_cθ))
 
 
 if __name__=="__main__":
@@ -201,7 +200,7 @@ if __name__=="__main__":
 
     phi = np.deg2rad(np.linspace(0, 360, 120+1))
 
-    grid_dsig = ampl_pi0p.interp_dsigma(W, Q2, cos_theta, phi, E_beam, h=1)
+    grid_dsig = ampl_pi0p.interp_dsigma_v(W, Q2, cos_theta, phi, E_beam, h=1)
     logger.debug(grid_dsig.shape)
 
     import plotly.graph_objects as go
