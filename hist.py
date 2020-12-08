@@ -4,12 +4,12 @@ import numpy as np
 from ROOT import TCanvas, TH1F, TH2F, gROOT
 
 
-W_min = 1.08
-W_max = 2
+W_min  = 1.08
+W_max  = 2
 Q2_min = 0
 Q2_max = 5
 
-W_margin = 0.005
+W_margin  = 0.005
 Q2_margin = 0.025
 W_bins = 186
 Q2_bins = 202
@@ -32,9 +32,12 @@ class Hists4:
         self.h_Q2.Fill(Q2)
 
     def CreateCanvas(self):
-        self.c = TCanvas("c", "Events Histograms",
-            1280, 1080)
-        self.c.Divide(2, 2)
+        try:
+            self.c
+        except AttributeError:
+            self.c = TCanvas("c", "Events Histograms",
+                1280, 1080)
+            self.c.Divide(2, 2)
 
     def Draw(self):
         self.c.cd(1)
@@ -78,11 +81,11 @@ if __name__ =='__main__':
         help='Output file name')
     parser.add_argument('--test', type=int, nargs='?', metavar='N',
         const=100000,
-        help='Use Gauss distribution of N events instead of events file (for test)')
+        help='Use Gauss distribution of N events instead of events file (for test only)')
     args = parser.parse_args()
 
     if args.test:
-        W  = norm(W_min, W_max, args.test)
+        W  = norm(W_min,  W_max,  args.test)
         Q2 = norm(Q2_min, Q2_max, args.test)
     else:
         W, Q2 = np.loadtxt(args.file, unpack=True, usecols=(0,1))
