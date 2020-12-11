@@ -116,7 +116,7 @@ class EventGeneratorApp:
         self.args = self.parser.parse_args()
 
         with open('evgen.yaml') as f:
-            self.conf = yaml.load(f)
+            self.conf = yaml.load(f, Loader=yaml.SafeLoader)
         for attr in 'events ebeam channel wmin wmax q2min q2max dsigmaupper'.split():
             if hasattr(self.args, attr) and getattr(self.args, attr, None) is not None:
                 self.conf[attr] = getattr(self.args, attr)
