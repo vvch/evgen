@@ -5,8 +5,6 @@ import scipy.interpolate
 import logging
 logger = logging.getLogger(__name__)
 
-sys.path.append('/media/vitaly/work/work/jlab/clasfw')
-
 import hep
 import hep.amplitudes
 
@@ -97,18 +95,43 @@ class InterpSigma:
 class InterpSigmaLinearND(InterpSigma):
     def __init__(self, Amplitude, model, channel):
         super().__init__(Amplitude, model, channel)
-        from scipy.interpolate.interpnd import _ndim_coords_from_arrays
-        points = _ndim_coords_from_arrays(self.points)
+        logger.debug('Interpolator initialization')
         self.interpolator = scipy.interpolate.LinearNDInterpolator(
-            points, self.data,
-        )
+            self.points, self.data)
         logger.debug('Interpolator initialized')
 
     def interp_H(self, w, q2, cos_theta):
-        grid_w, grid_q2, grid_cθ = np.array(np.meshgrid(
-            w, q2, cos_theta
-        ))
-        # )).transpose((0, 2, 1))
+        grid_w, grid_q2, grid_cθ = np.meshgrid(w, q2, cos_theta)
+        return self.interpolator((grid_w, grid_q2, grid_cθ))
+
+
+class InterpSigmaCached(InterpSigma):
+    def __init__(self, model, channel):
+        fname = model+'_'+channel+'.npz'
+        try:
+            npz = np.load(fname)
+            self.data = npz['amplitudes']
+            self.points = npz['points']
+            #logger.info(self.data)
+            logger.info(f"Data loaded from file cache '{fname}'")
+        except FileNotFoundError:
+            from clasfw.models import Amplitude, Model, Channel
+            from clasfw.app import create_app
+            app = create_app()
+            with app.test_request_context():
+                o_model = Model.by_name(model)
+                o_channel = Channel.by_name(channel)
+                super().__init__(Amplitude, o_model, o_channel)
+            np.savez(fname,
+                amplitudes=self.data,
+                points=self.points)
+            logger.info(f"Data saved to cache file '{fname}'")
+        self.interpolator = scipy.interpolate.LinearNDInterpolator(
+            self.points, self.data)
+        logger.debug('Interpolator initialized')
+
+    def interp_H(self, w, q2, cos_theta):
+        grid_w, grid_q2, grid_cθ = np.meshgrid(w, q2, cos_theta)
         return self.interpolator((grid_w, grid_q2, grid_cθ))
 
 
@@ -143,7 +166,8 @@ if __name__=="__main__":
     parser.add_argument('--ebeam', '-E', type=float,
         default=10.6,
         help='Beam energy E, GeV')
-    parser.add_argument('--channel', type=str,
+    parser.add_argument('--channel', '-C', type=str,
+        choices=['pi+ n', 'pi0 p', 'pi- p', 'pi0 n'],
         default='pi0 p',
         help='Channel')
     args = parser.parse_args()
@@ -155,40 +179,31 @@ if __name__=="__main__":
 
     logger.info('Loading data')
 
-    from clasfw.models import Amplitude, Model, Channel
-    from clasfw.app import create_app
-    app = create_app()
-    ampl_pi0p = None
-    channel = None
-    with app.test_request_context():
-        model = Model.by_name('maid')
-        channel = Channel.by_name(channel_name)
-        #ampl_pi0p = InterpSigma(Amplitude, model, channel)
-        ampl_pi0p = InterpSigmaLinearND(Amplitude, model, channel)
+    amplitudes = InterpSigmaCached('maid', channel_name)
 
-        if 1:
-            cos_theta=1
-            print(f'W: {W},\tQ2: {Q2},\tcos_theta={cos_theta}')
-            H = Amplitude.query.filter_by(
-                model=model,
-                channel=channel,
-                w=W,
-                q2=Q2,
-                cos_theta=cos_theta,
-            ).one().H
-            print("H:\n", H)
-            R = hep.amplitudes.ampl_to_R(H)
-            print("R:\n", R)
-            R_interp = ampl_pi0p.interp_R(W, Q2, cos_theta)
-            print(R_interp)
-            print(R == R_interp)
+    if 0:
+        cos_theta=1
+        print(f'W: {W},\tQ2: {Q2},\tcos_theta={cos_theta}')
+        H = Amplitude.query.filter_by(
+            model=model,
+            channel=channel,
+            w=W,
+            q2=Q2,
+            cos_theta=cos_theta,
+        ).one().H
+        print("H:\n", H)
+        R = hep.amplitudes.ampl_to_R(H)
+        print("R:\n", R)
+        R_interp = amplitudes.interp_R(W, Q2, cos_theta)
+        print(R_interp)
+        print(R == R_interp)
 
     #cos_theta = np.linspace(-1, 1, 10)
     ε = 0.0000001
     cos_theta = np.arange(-1, 1 +ε, 0.01)
     #cos_theta = 0
     #cos_theta = 1
-    grid_R = ampl_pi0p.interp_R(W, Q2, cos_theta )
+    grid_R = amplitudes.interp_R(W, Q2, cos_theta )
     logger.debug(f'SHAPE OF R: {grid_R.shape}')
     logger.debug(f'R: {grid_R}')
 
@@ -200,7 +215,7 @@ if __name__=="__main__":
 
     phi = np.deg2rad(np.linspace(0, 360, 120+1))
 
-    grid_dsig = ampl_pi0p.interp_dsigma_v(W, Q2, cos_theta, phi, E_beam, h=1)
+    grid_dsig = amplitudes.interp_dsigma_v(W, Q2, cos_theta, phi, E_beam, h=1)
     logger.debug(grid_dsig.shape)
 
     import plotly.graph_objects as go
@@ -208,7 +223,7 @@ if __name__=="__main__":
         layout_scene_xaxis_title='φ, rad',
         layout_scene_yaxis_title='cos θ',
         layout_scene_zaxis_title='dσ/dΩ, µb',
-        layout_title=f'{channel.name}: Q² = {Q2} GeV², W = {W} GeV',
+        layout_title=f'{channel_name}: Q² = {Q2} GeV², W = {W} GeV',
     )
     fig.add_surface(
         x=phi,

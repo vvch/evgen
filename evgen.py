@@ -4,10 +4,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 from evgen_base import EventGeneratorBase, EventGeneratorApp
-
-sys.path.append('/media/vitaly/work/work/jlab/clasfw')
-
-from sig_interpolate import InterpSigmaLinearND
+from sig_interpolate import InterpSigmaCached
 
 
 class EventGeneratorFW(EventGeneratorBase):
@@ -15,14 +12,7 @@ class EventGeneratorFW(EventGeneratorBase):
     def __init__(self, conf):
         super().__init__(conf)
         logger.info("Loading data")
-        from clasfw.models import Amplitude, Model, Channel
-        from clasfw.app import create_app
-        app = create_app()
-        with app.test_request_context():
-            self.dsigma = InterpSigmaLinearND(
-                Amplitude,
-                Model.by_name('maid'),
-                Channel.by_name(self.channel))
+        self.dsigma = InterpSigmaCached('maid', self.channel)
         logger.info("EvGen initialized")
 
     def get_dsigma(self, event):
