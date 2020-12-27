@@ -15,23 +15,21 @@ Event = namedtuple('Event',
 class EventGeneratorBase:
     """Abstract base event generator"""
     def __init__(self, conf):
-        for f in 'wmin wmax q2min q2max ebeam channel events'.split():
-            setattr(self, f, conf[f])
         self.min_dsigma = None
         self.max_dsigma = None
         self.max_dsigma_event = None
         self.dsigma_exceed_counter = 0
         self.raw_events_counter = 0
-        try:
-            self.dsigma_upper = conf['dsigmaupper']
-        except KeyError:
+        for k, v in conf.__dict__.items():
+            setattr(self, k, v)
+        if getattr(self, 'dsigma_upper', None) is None:
             self.dsigma_upper = self.get_dsigma_upper()
 
     def get_dsigma_upper(self):
         raise NotImplementedError(
             "Currently automatic calculation of maximum differential cross-section"
             " value in the specified range is not implemented,"
-            " it should be specified as 'dsigmaupper' parameter")
+            " it should be specified as 'dsigma-upper' parameter")
 
     def get_dsigma(self, event):
         raise NotImplementedError(
@@ -73,8 +71,6 @@ class EventGeneratorApp:
     """Event Generator"""
     def __init__(self, EventGenerator, log_level=logging.INFO, log_fmt='%(asctime)s %(levelname)s %(message)s'):
         logging.basicConfig(level=log_level, format=log_fmt, datefmt='%H:%M:%S')
-        import yaml
-        from pathlib import Path
         try:
             from dotenv import load_dotenv, find_dotenv
             load_dotenv(find_dotenv())
@@ -86,43 +82,50 @@ class EventGeneratorApp:
         except ModuleNotFoundError:
             pass
 
-        import argparse
-        self.parser = argparse.ArgumentParser(
+        from configargparse import ArgumentParser, DefaultsFormatter
+        parser = ArgumentParser(
             fromfile_prefix_chars='@',
+            default_config_files=['evgen.conf'],
+            formatter_class=DefaultsFormatter,
+            add_config_file_help=False,
             description=EventGenerator.__doc__ or self.__doc__ or EventGeneratorApp.__doc__)
-        self.parser.add_argument('--events', '-n', '-N', type=int,
+        parser.add('-c', '--config', is_config_file=True,
+            help='Config file path')
+        parser.add('--events', '-n', '-N', type=int,
             help='Number of events to generate')
-        self.parser.add_argument('--ebeam', '-E', type=float,
+        parser.add('--ebeam', '-E', type=float,
             help='Beam energy, GeV')
-        self.parser.add_argument('--wmin', type=float,
+        parser.add('--helicity', '-H', type=int,
+            choices=[0,1],
+            default=0,
+            help='Electron helicity')
+        parser.add('--wmin', type=float,
+            default=1.1,
             help='W min, GeV')
-        self.parser.add_argument('--wmax', type=float,
+        parser.add('--wmax', type=float,
+            default=2,
             help='W max, GeV')
-        self.parser.add_argument('--q2min', type=float,
+        parser.add('--q2min', type=float,
+            default=0,
             help='Q^2 min, GeV^2')
-        self.parser.add_argument('--q2max', type=float,
+        parser.add('--q2max', type=float,
+            default=5,
             help='Q^2 max, GeV^2')
-        self.parser.add_argument('--dsigmaupper', '-U', type=float,
+        parser.add('--dsigma-upper', '-U', type=float,
             help='Upper limit for differential cross-section value, mcb')
-        self.parser.add_argument('--channel', '-C', type=str,
+        parser.add('--channel', '-C', type=str, required=True,
             choices=['pi+ n', 'pi0 p', 'pi- p', 'pi0 n'],
             help='Channel')
-        self.parser.add_argument('--interval', '-T', type=float,
+        parser.add('--interval', '-T', type=float,
             default=1,
             help='Output time interval, seconds')
-        self.parser.add_argument('--output', '-o', type=str,
+        parser.add('--output', '-o', type=str,
             default='wq2.dat',
             help='Output file name')
-        self.args = self.parser.parse_args()
-
-        with open('evgen.yaml') as f:
-            self.conf = yaml.load(f, Loader=yaml.SafeLoader)
-        for attr in 'events ebeam channel wmin wmax q2min q2max dsigmaupper'.split():
-            if hasattr(self.args, attr) and getattr(self.args, attr, None) is not None:
-                self.conf[attr] = getattr(self.args, attr)
-        logger.info(self.conf)
-
-        self.evgen = EventGenerator(self.conf)
+        self.parser = parser
+        self.args = parser.parse()
+        logger.info(self.args)
+        self.evgen = EventGenerator(self.args)
 
     def run(self):
         #hist = Hists4()
@@ -142,7 +145,7 @@ class EventGeneratorApp:
                         timer.elapsed, timer.estimated,
                         timer.speed * 60)
 
-        logger.info("Generated: %d events, time: %s", len(events), timer.elapsed)
+        logger.info("Generated: %d events, elapsed time: %s", len(events), timer.elapsed)
         logger.info(
             "Filtered %d differential cross-section values at all: min=%g, max=%g [mcb]",
             self.evgen.raw_events_counter,

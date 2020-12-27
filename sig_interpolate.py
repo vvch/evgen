@@ -89,7 +89,8 @@ class InterpSigma:
 
     def dsigma_minmax(self, Eb, h=1):
         raise NotImplementedError(
-            "Automatic calculation of maximum differential cross-section value not implemented yet")
+            "Automatic calculation of maximum differential cross-section value"
+            " not implemented yet")
 
 
 class InterpSigmaLinearND(InterpSigma):
@@ -156,7 +157,9 @@ if __name__=="__main__":
 
     import argparse
     parser = argparse.ArgumentParser(
-        description='Interpolated differential cross-section 3D plot from MAID helicity amplitudes data')
+        description=
+            'Interpolated differential cross-section 3D plot'
+            ' from MAID helicity amplitudes data')
     parser.add_argument('-W', type=float,
         default=1.5,
         help='Final state invariant mass W, GeV')
@@ -166,6 +169,10 @@ if __name__=="__main__":
     parser.add_argument('--ebeam', '-E', type=float,
         default=10.6,
         help='Beam energy E, GeV')
+    parser.add_argument('--helicity', '-H', type=int,
+        choices=[0,1],
+        default=0,
+        help='Electron helicity')
     parser.add_argument('--channel', '-C', type=str,
         choices=['pi+ n', 'pi0 p', 'pi- p', 'pi0 n'],
         default='pi0 p',
@@ -215,7 +222,8 @@ if __name__=="__main__":
 
     phi = np.deg2rad(np.linspace(0, 360, 120+1))
 
-    grid_dsig = amplitudes.interp_dsigma_v(W, Q2, cos_theta, phi, E_beam, h=1)
+    grid_dsig = amplitudes.interp_dsigma_v(
+        W, Q2, cos_theta, phi, E_beam, h=args.helicity)
     logger.debug(grid_dsig.shape)
 
     import plotly.graph_objects as go

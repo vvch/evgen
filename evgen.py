@@ -16,7 +16,7 @@ class EventGeneratorFW(EventGeneratorBase):
         logger.info("EvGen initialized")
 
     def get_dsigma(self, event):
-        return self.dsigma.interp_dsigma(*event, self.ebeam, h=1)
+        return self.dsigma.interp_dsigma(*event, self.ebeam, h=self.helicity)
 
 
 if __name__=='__main__':
