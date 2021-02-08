@@ -134,31 +134,35 @@ class EventGeneratorApp:
         timer.min_interval_to_output = self.args.interval
 
         events = []
-        for event in self.evgen.generate_events():
-            events.append(event)
+        with open(self.args.output, 'w') as output:
+            for event in self.evgen.generate_events():
+                events.append(event)
 
-            timer.update()
-            if timer.may_output():
-                logger.info(
-                    "%3.0f %%\tEvents: %d\tElapsed: %8s\t Estimated: %8s\tSpeed: %3g/min",
-                        timer.percent, timer.counter,
-                        timer.elapsed, timer.estimated,
-                        timer.speed * 60)
+                timer.update()
+                if timer.may_output():
+                    logger.info(
+                        "%3.0f %%\tEvents: %d\tElapsed: %8s\t Estimated: %8s\tSpeed: %3g/min",
+                            timer.percent, timer.counter,
+                            timer.elapsed, timer.estimated,
+                            timer.speed * 60)
+                    if 1:
+                        np.savetxt(output, events)
+                        events.clear()
 
-        logger.info("Generated: %d events, elapsed time: %s", len(events), timer.elapsed)
-        logger.info(
-            "Filtered %d differential cross-section values at all: min=%g, max=%g [mcb]",
-            self.evgen.raw_events_counter,
-            self.evgen.min_dsigma, self.evgen.max_dsigma)
-        if self.evgen.dsigma_exceed_counter:
-            logger.warning(
-                "Cross-section %d times (of %d, %.3g%%) exceeded upper limit %g, max=%g [mcb] on %s",
-                self.evgen.dsigma_exceed_counter, self.evgen.raw_events_counter,
-                self.evgen.dsigma_exceed_counter / self.evgen.raw_events_counter,
-                self.evgen.dsigma_upper, self.evgen.max_dsigma,
-                str(self.evgen.max_dsigma_event))
-        #hist.save()
-        np.savetxt(self.args.output, events)
+            logger.info("Generated: %d events, elapsed time: %s", len(events), timer.elapsed)
+            logger.info(
+                "Filtered %d differential cross-section values at all: min=%g, max=%g [mcb]",
+                self.evgen.raw_events_counter,
+                self.evgen.min_dsigma, self.evgen.max_dsigma)
+            if self.evgen.dsigma_exceed_counter:
+                logger.warning(
+                    "Cross-section %d times (of %d, %.3g%%) exceeded upper limit %g, max=%g [mcb] on %s",
+                    self.evgen.dsigma_exceed_counter, self.evgen.raw_events_counter,
+                    self.evgen.dsigma_exceed_counter / self.evgen.raw_events_counter,
+                    self.evgen.dsigma_upper, self.evgen.max_dsigma,
+                    str(self.evgen.max_dsigma_event))
+            #hist.save()
+            np.savetxt(output, events)
         logger.debug("Done")
 
     @classmethod
