@@ -96,8 +96,8 @@ class EventGeneratorApp:
         parser.add('--ebeam', '-E', type=float,
             help='Beam energy, GeV')
         parser.add('--helicity', '-H', type=int,
-            choices=[0,1],
-            default=0,
+            choices=[-1,1],
+            default=1,
             help='Electron helicity')
         parser.add('--wmin', type=float,
             default=1.1,
