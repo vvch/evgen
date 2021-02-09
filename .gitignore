@@ -7,3 +7,12 @@ __pycache__
 *.pyc
 *.bak
 .pytest_cache
+
+*.png
+*.jpg
+*.jpeg
+*.JPG
+*.JPEG
+*.npz
+*.dat
+*.conf
