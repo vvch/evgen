@@ -2,7 +2,6 @@
 import numpy as np
 from ROOT import TLorentzVector, TVector3
 
-#import hep
 
 class Lund:
     e  = 11
@@ -21,7 +20,8 @@ class Lund:
     def __init__(self, channel_name, ebeam):
         if channel_name not in self.available_channels:
             NotImplementedError(
-                f'Sorry, currently LUND file saving implemented for {self.available_channels} channels only')
+                f'Sorry, currently LUND file saving implemented for'
+                f' {self.available_channels} channels only')
         self.channel_name = channel_name
         self.ebeam = ebeam
 
@@ -137,9 +137,8 @@ class Lund:
             p.RotateZ(ang2)
 
         def str_p4(p):
-            return ' '.join(map(str,(
-                p.Px(), p.Py(), p.Pz(), p.E()
-            )))
+            return ' '.join([str(p[i]) for i in range(4)])
+
         e, γ1, γ2, nucleon, meson = map(str_p4, (
             e, γ1, γ2, nucleon, meson))
 
@@ -163,8 +162,7 @@ if __name__ =='__main__':
     import argparse
     parser = argparse.ArgumentParser(
         description='LUND format conversion')
-    parser.add_argument('file', type=str, nargs='?',
-        default='wq2.dat',
+    parser.add_argument('file', type=str, nargs='?', default='wq2.dat',
         help='Events table file name')
     parser.add_argument('--channel', '-C', type=str, required=True,
         choices=Lund.available_channels,

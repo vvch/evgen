@@ -62,7 +62,6 @@ class Hists4:
         hists.save(args.output)
 
 
-
 def norm(x1, x2, size=None):
     mean   = (x1 + x2) / 2
     stddev = (x2 - x1) / 4
@@ -73,14 +72,11 @@ if __name__ =='__main__':
     import argparse
     parser = argparse.ArgumentParser(
         description='Plotting events histograms by CERN ROOT')
-    parser.add_argument('file', type=str, nargs='?',
-        default='wq2.dat',
+    parser.add_argument('file', type=str, nargs='?', default='wq2.dat',
         help='Events table file name')
-    parser.add_argument('--output', '-o', type=str,
-        default='events_hist4.png',
+    parser.add_argument('--output', '-o', type=str, default='events_hist4.png',
         help='Output file name')
-    parser.add_argument('--test', type=int, nargs='?', metavar='N',
-        const=100000,
+    parser.add_argument('--test', type=int, nargs='?', metavar='N', const=100000,
         help='Use Gauss distribution of N events instead of events file (for test only)')
     args = parser.parse_args()
 

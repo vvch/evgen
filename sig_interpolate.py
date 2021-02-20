@@ -127,9 +127,10 @@ class InterpSigmaCached(InterpSigma):
                 amplitudes=self.data,
                 points=self.points)
             logger.info(f"Data saved to cache file '{fname}'")
+        logger.info('Interpolator initialization')
         self.interpolator = scipy.interpolate.LinearNDInterpolator(
             self.points, self.data)
-        logger.debug('Interpolator initialized')
+        logger.info('Interpolator initialized')
 
     def interp_H(self, w, q2, cos_theta):
         grid_w, grid_q2, grid_cθ = np.meshgrid(w, q2, cos_theta)
@@ -160,22 +161,17 @@ if __name__=="__main__":
         description=
             'Interpolated differential cross-section 3D plot'
             ' from MAID helicity amplitudes data')
-    parser.add_argument('-W', type=float,
-        default=1.5,
+    parser.add_argument('-W', type=float, default=1.5,
         help='Final state invariant mass W, GeV')
-    parser.add_argument('-Q2', type=float,
-        default=1.0,
+    parser.add_argument('-Q2', type=float, default=1.0,
         help='Photon virtuality Q^2, GeV^2')
-    parser.add_argument('--ebeam', '-E', type=float,
-        default=10.6,
+    parser.add_argument('--ebeam', '-E', type=float, default=10.6,
         help='Beam energy E, GeV')
-    parser.add_argument('--helicity', '-H', type=int,
-        choices=[0,1],
-        default=0,
+    parser.add_argument('--helicity', '-H', type=int, default=1,
+        choices=[-1, 1],
         help='Electron helicity')
-    parser.add_argument('--channel', '-C', type=str,
+    parser.add_argument('--channel', '-C', type=str, default='pi0 p',
         choices=['pi+ n', 'pi0 p', 'pi- p', 'pi0 n'],
-        default='pi0 p',
         help='Channel')
     args = parser.parse_args()
 

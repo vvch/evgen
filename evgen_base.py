@@ -95,32 +95,25 @@ class EventGeneratorApp:
             help='Number of events to generate')
         parser.add('--ebeam', '-E', type=float,
             help='Beam energy, GeV')
-        parser.add('--helicity', '-H', type=int,
-            choices=[-1,1],
-            default=1,
+        parser.add('--helicity', '-H', type=int, default=1,
+            choices=[-1, 1],
             help='Electron helicity')
-        parser.add('--wmin', type=float,
-            default=1.1,
+        parser.add('--wmin', type=float, default=1.1,
             help='W min, GeV')
-        parser.add('--wmax', type=float,
-            default=2,
+        parser.add('--wmax', type=float, default=2,
             help='W max, GeV')
-        parser.add('--q2min', type=float,
-            default=0,
+        parser.add('--q2min', type=float, default=0,
             help='Q^2 min, GeV^2')
-        parser.add('--q2max', type=float,
-            default=5,
+        parser.add('--q2max', type=float, default=5,
             help='Q^2 max, GeV^2')
         parser.add('--dsigma-upper', '-U', type=float,
             help='Upper limit for differential cross-section value, mcb')
         parser.add('--channel', '-C', type=str, required=True,
             choices=['pi+ n', 'pi0 p', 'pi- p', 'pi0 n'],
             help='Channel')
-        parser.add('--interval', '-T', type=float,
-            default=1,
+        parser.add('--interval', '-T', type=float, default=1,
             help='Output time interval, seconds')
-        parser.add('--output', '-o', type=str,
-            default='wq2.dat',
+        parser.add('--output', '-o', type=str, default='wq2.dat',
             help='Output file name')
         self.parser = parser
         self.args = parser.parse()
@@ -152,8 +145,7 @@ class EventGeneratorApp:
             logger.info("Generated: %d events, elapsed time: %s", len(events), timer.elapsed)
             logger.info(
                 "Filtered %d differential cross-section values at all: min=%g, max=%g [mcb]",
-                self.evgen.raw_events_counter,
-                self.evgen.min_dsigma, self.evgen.max_dsigma)
+                self.evgen.raw_events_counter, self.evgen.min_dsigma, self.evgen.max_dsigma)
             if self.evgen.dsigma_exceed_counter:
                 logger.warning(
                     "Cross-section %d times (of %d, %.3g%%) exceeded upper limit %g, max=%g [mcb] on %s",
