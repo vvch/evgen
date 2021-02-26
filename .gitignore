@@ -1,3 +1,5 @@
+doc/*
+data/*
 settings_local.py
 .env
 
@@ -7,7 +9,10 @@ __pycache__
 *.pyc
 *.bak
 .pytest_cache
+*.kate-swp
 
+
+*.txt
 *.png
 *.jpg
 *.jpeg

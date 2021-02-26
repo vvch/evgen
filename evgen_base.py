@@ -1,4 +1,7 @@
 #!/usr/bin/python3
+"""
+Base event generator framework, independent of cross-section calculation method
+"""
 import sys
 import numpy as np
 from collections import namedtuple
@@ -58,7 +61,7 @@ class EventGeneratorBase:
             if dsigma > self.dsigma_upper:
                 if not self.dsigma_exceed_counter:
                     logger.warning(
-                        "Cross-section %g exceeded upper limit %g mcb for %s."
+                        "Cross-section %g exceeded upper limit %g [mcb] for %s."
                         " Upper limit may be specified incorrectly.",
                         dsigma, self.dsigma_upper, str(ev))
                 self.dsigma_exceed_counter +=1
@@ -69,7 +72,8 @@ class EventGeneratorBase:
 
 class EventGeneratorApp:
     """Event Generator"""
-    def __init__(self, EventGenerator, log_level=logging.INFO, log_fmt='%(asctime)s %(levelname)s %(message)s'):
+    def __init__(self, EventGenerator, log_level=logging.INFO,
+                 log_fmt='%(asctime)s %(levelname)s %(message)s'):
         logging.basicConfig(level=log_level, format=log_fmt, datefmt='%H:%M:%S')
         try:
             from dotenv import load_dotenv, find_dotenv
@@ -117,8 +121,25 @@ class EventGeneratorApp:
             help='Output file name')
         self.parser = parser
         self.args = parser.parse()
+        print(self.get_header(), end=None)
         logger.info(self.args)
         self.evgen = EventGenerator(self.args)
+
+    def get_header(self):
+        def format_range(min, max, sep=' - '):
+            return "{:<4}".format(min) if min == max  \
+              else "{:<4}{}{:<4}".format(min, sep, max)
+        a = self.args
+        return \
+            self.parser.description + "\n"                            \
+            f"Author: {__author__}\n\n"                               \
+            f"Channel:\t {a.channel}\n"                               \
+            f"W  range, GeV :\t {format_range(a.wmin,  a.wmax)}\n"    \
+            f"Q² range, GeV²:\t {format_range(a.q2min, a.q2max)}\n"   \
+            f"E beam, GeV:\t {a.ebeam}\n"                             \
+            f"Helicity:\t {a.helicity:+}\n"                           \
+            f"Events number:\t {a.events}\n"                          \
+            f"CS max, µb:\t {a.dsigma_upper} (manually specified)\n\n"
 
     def run(self):
         #hist = Hists4()
@@ -148,7 +169,8 @@ class EventGeneratorApp:
                 self.evgen.raw_events_counter, self.evgen.min_dsigma, self.evgen.max_dsigma)
             if self.evgen.dsigma_exceed_counter:
                 logger.warning(
-                    "Cross-section %d times (of %d, %.3g%%) exceeded upper limit %g, max=%g [mcb] on %s",
+                    "Cross-section %d times (of %d, %.3g%%) exceeded upper limit %g,"
+                    " max=%g [mcb] on %s",
                     self.evgen.dsigma_exceed_counter, self.evgen.raw_events_counter,
                     self.evgen.dsigma_exceed_counter / self.evgen.raw_events_counter,
                     self.evgen.dsigma_upper, self.evgen.max_dsigma,
