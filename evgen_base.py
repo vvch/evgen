@@ -163,7 +163,9 @@ class EventGeneratorApp:
                         np.savetxt(output, events)
                         events.clear()
 
-            logger.info("Generated: %d events, elapsed time: %s", len(events), timer.elapsed)
+            np.savetxt(output, events)
+            #hist.save()
+            logger.info("Generated: %d events, elapsed time: %s", timer.counter, timer.elapsed)
             logger.info(
                 "Filtered %d differential cross-section values at all: min=%g, max=%g [mcb]",
                 self.evgen.raw_events_counter, self.evgen.min_dsigma, self.evgen.max_dsigma)
@@ -175,8 +177,6 @@ class EventGeneratorApp:
                     self.evgen.dsigma_exceed_counter / self.evgen.raw_events_counter,
                     self.evgen.dsigma_upper, self.evgen.max_dsigma,
                     str(self.evgen.max_dsigma_event))
-            #hist.save()
-            np.savetxt(output, events)
         logger.debug("Done")
 
     @classmethod
