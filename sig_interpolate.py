@@ -87,6 +87,15 @@ class InterpSigma:
     def interp_dsigma(self, *args, **kvargs):
         return np.ravel(self.interp_dsigma_v(*args, **kvargs))[0]
 
+    def interp_dsigma_e_v(self, W, Q2, cos_theta, phi, Eb, h=1):
+        """Electron scattering cross-section"""
+        ε = hep.ε_T(W, Q2, Eb)
+        return hep.Γ_ν(W, Q2, Eb, ε) * self.interp_dsigma_eps(
+            W, Q2, cos_theta, phi, ε, h)
+
+    def interp_dsigma_e(self, *args, **kvargs):
+        return np.ravel(self.interp_dsigma_e_v(*args, **kvargs))[0]
+
     def dsigma_minmax(self, Eb, h=1):
         raise NotImplementedError(
             "Automatic calculation of maximum differential cross-section value"
@@ -156,8 +165,9 @@ if __name__=="__main__":
     except ModuleNotFoundError:
         pass
 
-    import argparse
-    parser = argparse.ArgumentParser(
+    from argparse import ArgumentParser
+    parser = ArgumentParser(
+        fromfile_prefix_chars='@',
         description=
             'Interpolated differential cross-section 3D plot'
             ' from MAID helicity amplitudes data')
@@ -170,6 +180,8 @@ if __name__=="__main__":
     parser.add_argument('--helicity', '-H', type=int, default=1,
         choices=[-1, 1],
         help='Electron helicity')
+    parser.add_argument('--no-flux', action="store_true",
+        help='Do not multiply to virtual photon flux')
     parser.add_argument('--channel', '-C', type=str, default='pi0 p',
         choices=['pi+ n', 'pi0 p', 'pi- p', 'pi0 n'],
         help='Channel')
@@ -218,8 +230,12 @@ if __name__=="__main__":
 
     phi = np.deg2rad(np.linspace(0, 360, 120+1))
 
-    grid_dsig = amplitudes.interp_dsigma_v(
-        W, Q2, cos_theta, phi, E_beam, h=args.helicity)
+    if args.no_flux:
+        grid_dsig = amplitudes.interp_dsigma_v(
+            W, Q2, cos_theta, phi, E_beam, h=args.helicity)
+    else:
+        grid_dsig = amplitudes.interp_dsigma_e_v(
+            W, Q2, cos_theta, phi, E_beam, h=args.helicity)
     logger.debug(grid_dsig.shape)
 
     import plotly.graph_objects as go
@@ -227,7 +243,8 @@ if __name__=="__main__":
         layout_scene_xaxis_title='φ, rad',
         layout_scene_yaxis_title='cos θ',
         layout_scene_zaxis_title='dσ/dΩ, µb',
-        layout_title=f'{channel_name}: Q² = {Q2} GeV², W = {W} GeV',
+        layout_title=
+            f'{channel_name}: Q² = {Q2} GeV², W = {W} GeV',
     )
     fig.add_surface(
         x=phi,

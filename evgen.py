@@ -1,5 +1,4 @@
 #!/usr/bin/python3
-import sys
 import logging
 logger = logging.getLogger(__name__)
 
@@ -16,7 +15,8 @@ class EventGeneratorFW(EventGeneratorBase):
         logger.info("EvGen initialized")
 
     def get_dsigma(self, event):
-        return self.dsigma.interp_dsigma(*event, self.ebeam, h=self.helicity)
+        return self.dsigma.interp_dsigma_e(
+            *event, self.ebeam, h=self.helicity)
 
 
 if __name__=='__main__':
