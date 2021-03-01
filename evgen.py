@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 import logging
 logger = logging.getLogger(__name__)
-
+import numpy as np
 from evgen_base import EventGeneratorBase, EventGeneratorApp
 from sig_interpolate import InterpSigmaCached
 
@@ -15,8 +15,10 @@ class EventGeneratorFW(EventGeneratorBase):
         logger.info("EvGen initialized")
 
     def get_dsigma(self, event):
-        return self.dsigma.interp_dsigma_e(
-            *event, self.ebeam, h=self.helicity)
+        h = self.helicity
+        if h==0:
+            h = np.random.choice((-1, 1))
+        return self.dsigma.interp_dsigma_e(*event, self.ebeam, h)
 
 
 if __name__=='__main__':

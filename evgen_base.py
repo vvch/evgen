@@ -99,9 +99,6 @@ class EventGeneratorApp:
             help='Number of events to generate')
         parser.add('--ebeam', '-E', type=float,
             help='Beam energy, GeV')
-        parser.add('--helicity', '-H', type=int, default=1,
-            choices=[-1, 1],
-            help='Electron helicity')
         parser.add('--wmin', type=float, default=1.1,
             help='W min, GeV')
         parser.add('--wmax', type=float, default=2,
@@ -112,6 +109,9 @@ class EventGeneratorApp:
             help='Q^2 max, GeV^2')
         parser.add('--dsigma-upper', '-U', type=float,
             help='Upper limit for differential cross-section value, mcb')
+        parser.add('--helicity', '-H', type=int, default=0,
+            choices=[-1, 0, 1],
+            help='Electron helicity (use 0 for random choice)')
         parser.add('--channel', '-C', type=str, required=True,
             choices=['pi+ n', 'pi0 p', 'pi- p', 'pi0 n'],
             help='Channel')
@@ -130,6 +130,11 @@ class EventGeneratorApp:
             return "{:<4}".format(min) if min == max  \
               else "{:<4}{}{:<4}".format(min, sep, max)
         a = self.args
+        h = a.helicity
+        if h:
+            h = f"{h:+}"
+        else:
+            h = 'random +1 or -1'
         return \
             self.parser.description + "\n"                            \
             f"Author: {__author__}\n\n"                               \
@@ -137,7 +142,7 @@ class EventGeneratorApp:
             f"W  range, GeV :\t {format_range(a.wmin,  a.wmax)}\n"    \
             f"Q² range, GeV²:\t {format_range(a.q2min, a.q2max)}\n"   \
             f"E beam, GeV:\t {a.ebeam}\n"                             \
-            f"Helicity:\t {a.helicity:+}\n"                           \
+            f"Helicity:\t {h}\n"                                      \
             f"Events number:\t {a.events}\n"                          \
             f"CS max, µb:\t {a.dsigma_upper} (manually specified)\n\n"
 
