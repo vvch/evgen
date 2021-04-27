@@ -1,5 +1,6 @@
 doc/*
 data/*
+cache/*
 settings_local.py
 .env
 
@@ -10,7 +11,8 @@ __pycache__
 *.bak
 .pytest_cache
 *.kate-swp
-
+nohup.out
+nohup.out.*
 
 *.txt
 *.png
@@ -20,4 +22,5 @@ __pycache__
 *.JPEG
 *.npz
 *.dat
+*.pickle
 *.conf

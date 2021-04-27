@@ -25,6 +25,10 @@ class InterpSigma:
             Amplitude.H4r, Amplitude.H4j,
             Amplitude.H5r, Amplitude.H5j,
             Amplitude.H6r, Amplitude.H6j,
+        ).order_by(
+            Amplitude.q2,
+            Amplitude.w,
+            Amplitude.cos_theta,
         )
         t = np.array(list(data))
         if not len(t):
@@ -47,6 +51,13 @@ class InterpSigma:
         logger.debug(f'POINTS:\n{self.points}')
         logger.debug(f'SHAPE OF DATA: {self.data.shape}')
         logger.debug(f'DATA:\n{self.data}')
+
+
+    def correct_maid_H56(self):
+        logger.info('Correct MAID data')
+        for i in range(len(self.points)):
+            W, Q2 = self.points[i, 0:2]
+            self.data[i, 4:6] *= hep.amplitudes.H56_maid_correction_factor(W, Q2)  ##  H5, H6
 
 
     def interp_H(self, w, q2, cos_theta):
@@ -117,7 +128,7 @@ class InterpSigmaLinearND(InterpSigma):
 
 class InterpSigmaCached(InterpSigma):
     def __init__(self, model, channel):
-        fname = model+'_'+channel+'.npz'
+        fname = f"cache/{model}_{channel}.npz"
         try:
             npz = np.load(fname)
             self.data = npz['amplitudes']
@@ -145,6 +156,39 @@ class InterpSigmaCached(InterpSigma):
         grid_w, grid_q2, grid_cθ = np.meshgrid(w, q2, cos_theta)
         return self.interpolator((grid_w, grid_q2, grid_cθ))
 
+
+import pickle
+# amplitudes multiplied to special correction factor
+class InterpSigmaCorrectedCached(InterpSigma):
+    def __init__(self, model, channel):
+        fname = f"cache/{model}_{channel}_prepared_interpolator_cache.pickle"
+        try:
+            with open(fname, 'rb') as fh:
+                logger.info(f"Loading data from file cache '{fname}'")
+                self.interpolator = pickle.load(fh)
+            logger.info(f"Data loaded")
+        except FileNotFoundError:
+            from clasfw.models import Amplitude, Model, Channel
+            from clasfw.app import create_app
+            app = create_app()
+            with app.test_request_context():
+                o_model = Model.by_name(model)
+                o_channel = Channel.by_name(channel)
+                super().__init__(Amplitude, o_model, o_channel)
+
+            self.correct_maid_H56()
+
+            logger.info('Interpolator initialization')
+            self.interpolator = scipy.interpolate.LinearNDInterpolator(
+                self.points, self.data)
+            logger.info('Interpolator initialized')
+            with open(fname, 'wb') as fh:
+                pickle.dump(self.interpolator, fh, protocol=pickle.HIGHEST_PROTOCOL)
+            logger.info(f"Data saved to cache file '{fname}'")
+
+    def interp_H(self, w, q2, cos_theta):
+        grid_w, grid_q2, grid_cθ = np.meshgrid(w, q2, cos_theta)
+        return self.interpolator((grid_w, grid_q2, grid_cθ))
 
 if __name__=="__main__":
     #logging.basicConfig(level=logging.DEBUG)
@@ -194,7 +238,7 @@ if __name__=="__main__":
 
     logger.info('Loading data')
 
-    amplitudes = InterpSigmaCached('maid', channel_name)
+    amplitudes = InterpSigmaCorrectedCached('maid', channel_name)
 
     if 0:
         cos_theta=1

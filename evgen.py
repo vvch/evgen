@@ -3,7 +3,7 @@ import logging
 logger = logging.getLogger(__name__)
 import numpy as np
 from evgen_base import EventGeneratorBase, EventGeneratorApp
-from sig_interpolate import InterpSigmaCached
+from sig_interpolate import InterpSigmaCorrectedCached
 
 
 class EventGeneratorFW(EventGeneratorBase):
@@ -11,7 +11,7 @@ class EventGeneratorFW(EventGeneratorBase):
     def __init__(self, conf):
         super().__init__(conf)
         logger.info("Loading data")
-        self.dsigma = InterpSigmaCached('maid', self.channel)
+        self.dsigma = InterpSigmaCorrectedCached('maid', self.channel)
         logger.info("EvGen initialized")
 
     def get_dsigma(self, event):
