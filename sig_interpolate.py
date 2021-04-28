@@ -104,6 +104,7 @@ class InterpSigma:
         return hep.Γ_ν(W, Q2, Eb, ε) * self.interp_dsigma_eps(
             W, Q2, cos_theta, phi, ε, h)
 
+    # electron scattering cross-section
     def interp_dsigma_e(self, *args, **kvargs):
         return np.ravel(self.interp_dsigma_e_v(*args, **kvargs))[0]
 
@@ -226,9 +227,13 @@ if __name__=="__main__":
         help='Electron helicity')
     parser.add_argument('--no-flux', action="store_true",
         help='Do not multiply to virtual photon flux')
+    parser.add_argument('--no-plot', action="store_true",
+        help='Skip plot')
     parser.add_argument('--channel', '-C', type=str, default='pi0 p',
         choices=['pi+ n', 'pi0 p', 'pi- p', 'pi0 n'],
         help='Channel')
+    parser.add_argument('--output', '-o', type=str,
+        help='Output html file name (show in browser if empty)')
     args = parser.parse_args()
 
     W  = args.W
@@ -259,7 +264,8 @@ if __name__=="__main__":
 
     #cos_theta = np.linspace(-1, 1, 10)
     ε = 0.0000001
-    cos_theta = np.arange(-1, 1 +ε, 0.01)
+    #cos_theta = np.arange(-1, 1 +ε, 0.01)
+    cos_theta = np.arange(-1, 1 +ε, 0.1)
     #cos_theta = 0
     #cos_theta = 1
     grid_R = amplitudes.interp_R(W, Q2, cos_theta )
@@ -274,13 +280,20 @@ if __name__=="__main__":
 
     phi = np.deg2rad(np.linspace(0, 360, 120+1))
 
-    if args.no_flux:
-        grid_dsig = amplitudes.interp_dsigma_v(
-            W, Q2, cos_theta, phi, E_beam, h=args.helicity)
-    else:
-        grid_dsig = amplitudes.interp_dsigma_e_v(
-            W, Q2, cos_theta, phi, E_beam, h=args.helicity)
+    grid_dsig = (
+        amplitudes.interp_dsigma_v
+            if args.no_flux else
+        amplitudes.interp_dsigma_e_v
+    )(W, Q2, cos_theta, phi, E_beam, h=args.helicity)
+
     logger.debug(grid_dsig.shape)
+    DCS = grid_dsig[0,0]
+    DCS_min = DCS.min()
+    DCS_max = DCS.max()
+    print(f"DCS min: {DCS_min:g}, \tmax: {DCS_max}")
+
+    if args.no_plot:
+        sys.exit()
 
     import plotly.graph_objects as go
     fig = go.Figure(
@@ -288,12 +301,13 @@ if __name__=="__main__":
         layout_scene_yaxis_title='cos θ',
         layout_scene_zaxis_title='dσ/dΩ, µb',
         layout_title=
-            f'{channel_name}: Q² = {Q2} GeV², W = {W} GeV',
+            f'{channel_name}: Q² = {Q2} GeV², W = {W} GeV\n'
+            f' min={DCS_min:g} max={DCS_max:g}',
     )
     fig.add_surface(
         x=phi,
         y=cos_theta,
-        z=grid_dsig[0,0],
+        z=DCS,
         hovertemplate=
             "φ: %{x} rad<br>"
             "cos<i>θ</i>: %{y}<br>"
@@ -305,4 +319,8 @@ if __name__=="__main__":
         #x=cos_theta,
         #y=grid_R.flatten(),
     #))
-    fig.show()
+    if args.output:
+        fig.write_html(args.output)
+    else:
+        fig.show()
+    logger.info('Done')
