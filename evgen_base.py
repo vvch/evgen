@@ -2,7 +2,8 @@
 """
 Base event generator framework, independent of cross-section calculation method
 """
-import sys
+import sys, time
+import re
 import numpy as np
 from collections import namedtuple
 import logging
@@ -61,7 +62,7 @@ class EventGeneratorBase:
             if dsigma > self.dsigma_upper:
                 if not self.dsigma_exceed_counter:
                     logger.warning(
-                        "Cross-section %g exceeded upper limit %g [mcb] for %s."
+                        "Cross-section %g exceeded upper limit %g [mcb*GeV^-3] for %s."
                         " Upper limit may be specified incorrectly.",
                         dsigma, self.dsigma_upper, str(ev))
                 self.dsigma_exceed_counter +=1
@@ -135,16 +136,39 @@ class EventGeneratorApp:
             h = f"{h:+}"
         else:
             h = 'random +1 or -1'
-        return \
-            self.parser.description + "\n"                            \
-            f"Author: {__author__}\n\n"                               \
-            f"Channel:\t {a.channel}\n"                               \
-            f"W  range, GeV :\t {format_range(a.wmin,  a.wmax)}\n"    \
-            f"Q² range, GeV²:\t {format_range(a.q2min, a.q2max)}\n"   \
-            f"E beam, GeV:\t {a.ebeam}\n"                             \
-            f"Helicity:\t {h}\n"                                      \
-            f"Events number:\t {a.events}\n"                          \
-            f"CS max, µb:\t {a.dsigma_upper} (manually specified)\n\n"
+        return (
+            self.parser.description + "\n"
+            f"Author: {__author__}\n"
+            f"\n"
+            f"Started:         {time.asctime()}\n"
+            f"Channel:         {a.channel}\n"
+            f"W  range:        {format_range(a.wmin,  a.wmax)} GeV\n"
+            f"Q² range:        {format_range(a.q2min, a.q2max)} GeV²\n"
+            f"E beam:          {a.ebeam} GeV\n"
+            f"Helicity:        {h}\n"
+            f"DCS upper limit: {a.dsigma_upper} µb·GeV⁻³ (manually specified)\n"
+            f"Events number:   {a.events}\n"
+        )
+
+    def get_header_commented(self):
+        return re.sub(r'^', '#  ', '\n'+self.get_header()+'\n', 0, re.M) + '\n'
+
+    def get_footer(self, timer):
+        return (
+            f"Generated:       {timer.counter} events\n"
+            f"Elapsed time:    {timer.elapsed}\n"
+            f"Filtered events: {self.evgen.raw_events_counter}\n"
+            f"Filtered rate:   {timer.counter / self.evgen.raw_events_counter:%}\n"
+            f"DCS min:         {self.evgen.min_dsigma} µb·GeV⁻³\n"
+            f"DCS max:         {self.evgen.max_dsigma} µb·GeV⁻³\n"
+            f"DCS upper limit: {self.evgen.dsigma_upper} µb·GeV⁻³\n"
+            f"DCS max/limit:   {self.evgen.max_dsigma / self.evgen.dsigma_upper:%}\n"
+            f"DCS lim exceed:  {self.evgen.dsigma_exceed_counter}\n"
+            f"Finished:        {time.asctime()}\n"
+        )
+
+    def get_footer_commented(self, timer):
+        return '#\n' + re.sub(r'^', '#  ', self.get_footer(timer), 0, re.M)
 
     def run(self):
         #hist = Hists4()
@@ -154,6 +178,7 @@ class EventGeneratorApp:
 
         events = []
         with open(self.args.output, 'w') as output:
+            output.write(self.get_header_commented())
             for event in self.evgen.generate_events():
                 events.append(event)
 
@@ -170,14 +195,19 @@ class EventGeneratorApp:
 
             np.savetxt(output, events)
             #hist.save()
-            logger.info("Generated: %d events, elapsed time: %s", timer.counter, timer.elapsed)
+            output.write(self.get_footer_commented(timer))
             logger.info(
-                "Filtered %d differential cross-section values at all: min=%g, max=%g [mcb]",
-                self.evgen.raw_events_counter, self.evgen.min_dsigma, self.evgen.max_dsigma)
+                "Generated: %d events, elapsed time: %s",
+                timer.counter, timer.elapsed)
+            logger.info(
+                "Filtered %d differential cross-section values"
+                " at all: min=%g, max=%g [mcb*GeV^-3]",
+                self.evgen.raw_events_counter,
+                self.evgen.min_dsigma, self.evgen.max_dsigma)
             if self.evgen.dsigma_exceed_counter:
                 logger.warning(
                     "Cross-section %d times (of %d, %.3g%%) exceeded upper limit %g,"
-                    " max=%g [mcb] on %s",
+                    " max=%g [mcb*GeV^-3] on %s",
                     self.evgen.dsigma_exceed_counter, self.evgen.raw_events_counter,
                     self.evgen.dsigma_exceed_counter / self.evgen.raw_events_counter,
                     self.evgen.dsigma_upper, self.evgen.max_dsigma,
