@@ -18,6 +18,18 @@ Event = namedtuple('Event',
 
 class EventGeneratorBase:
     """Abstract base event generator"""
+    __slots__ = """
+        wmin   wmax
+        q2min  q2max
+        min_dsigma
+        max_dsigma
+        max_dsigma_event
+        dsigma_upper
+        dsigma_exceed_counter
+        raw_events_counter
+        events
+    """.split()
+
     def __init__(self, conf):
         self.min_dsigma = None
         self.max_dsigma = None
@@ -221,6 +233,9 @@ class EventGeneratorApp:
         except (NotImplementedError, ModuleNotFoundError) as e:
             logger.fatal(e)
             sys.exit(1)
+        except KeyboardInterrupt as e:
+            logger.fatal(e.__class__.__name__)
+            sys.exit(2)
 
 
 class EventGeneratorTest(EventGeneratorBase):
