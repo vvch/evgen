@@ -21,6 +21,8 @@ class EventGeneratorBase:
     __slots__ = """
         wmin   wmax
         q2min  q2max
+        ctmin  ctmax
+        phimin phimax
         min_dsigma
         max_dsigma
         max_dsigma_event
@@ -37,6 +39,8 @@ class EventGeneratorBase:
         self.dsigma_exceed_counter = 0
         self.raw_events_counter = 0
         for k, v in conf.__dict__.items():
+            if k in ('phimin', 'phimax'):
+                v = np.deg2rad(v)
             setattr(self, k, v)
         if getattr(self, 'dsigma_upper', None) is None:
             self.dsigma_upper = self.get_dsigma_upper()
@@ -53,10 +57,10 @@ class EventGeneratorBase:
 
     def raw_event(self, size=None):
         return Event(
-            W         = np.random.uniform(self.wmin,  self.wmax,  size),
-            Q2        = np.random.uniform(self.q2min, self.q2max, size),
-            cos_theta = np.random.uniform(-1, 1, size),
-            phi       = np.random.uniform(0, 2*np.pi, size),
+            W         = np.random.uniform(self.wmin,   self.wmax,   size),
+            Q2        = np.random.uniform(self.q2min,  self.q2max,  size),
+            cos_theta = np.random.uniform(self.ctmin,  self.ctmax,  size),
+            phi       = np.random.uniform(self.phimin, self.phimax, size),
         )
 
     def generate_events(self):
@@ -120,6 +124,14 @@ class EventGeneratorApp:
             help='Q^2 min, GeV^2')
         parser.add('--q2max', type=float, default=5,
             help='Q^2 max, GeV^2')
+        parser.add('--ctmin', '--cos-theta-min', type=float, default=-1,
+            help='cos theta min')
+        parser.add('--ctmax', '--cos-theta-max', type=float, default=+1,
+            help='cos theta max')
+        parser.add('--phimin', type=float, default=0,
+            help='phi min, deg')
+        parser.add('--phimax', type=float, default=360,
+            help='phi max, deg')
         parser.add('--dsigma-upper', '-U', type=float,
             help='Upper limit for differential cross-section value, mcb')
         parser.add('--helicity', '-H', type=int, default=0,
@@ -156,6 +168,8 @@ class EventGeneratorApp:
             f"Channel:         {a.channel}\n"
             f"W  range:        {format_range(a.wmin,  a.wmax)} GeV\n"
             f"Q² range:        {format_range(a.q2min, a.q2max)} GeV²\n"
+            f"cos θ range:     {format_range(a.ctmin, a.ctmax)}\n"
+            f"φ range:         {format_range(a.phimin, a.phimax)} degrees\n"
             f"E beam:          {a.ebeam} GeV\n"
             f"Helicity:        {h}\n"
             f"DCS upper limit: {a.dsigma_upper} µb·GeV⁻³ (manually specified)\n"
