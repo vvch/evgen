@@ -1,8 +1,12 @@
 doc/*
 data/*
+results/*
 cache/*
 settings_local.py
 .env
+
+##  various disposable single-time tests
+tst_*.py
 
 venv/*
 

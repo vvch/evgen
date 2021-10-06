@@ -42,6 +42,7 @@ class EventGeneratorBase:
             if k in ('phimin', 'phimax'):
                 v = np.deg2rad(v)
             setattr(self, k, v)
+
         if getattr(self, 'dsigma_upper', None) is None:
             self.dsigma_upper = self.get_dsigma_upper()
 
@@ -109,7 +110,8 @@ class EventGeneratorApp:
             default_config_files=['evgen.conf'],
             formatter_class=DefaultsFormatter,
             add_config_file_help=False,
-            description=EventGenerator.__doc__ or self.__doc__ or EventGeneratorApp.__doc__)
+            description=EventGenerator.__doc__
+                or self.__doc__ or EventGeneratorApp.__doc__)
         parser.add('-c', '--config', is_config_file=True,
             help='Config file path')
         parser.add('--events', '-n', '-N', type=int,
@@ -146,9 +148,9 @@ class EventGeneratorApp:
             help='Output file name')
         self.parser = parser
         self.args = parser.parse()
+        self.evgen = EventGenerator(self.args)
         print(self.get_header(), end=None)
         logger.info(self.args)
-        self.evgen = EventGenerator(self.args)
 
     def get_header(self):
         def format_range(min, max, sep=' - '):
@@ -156,23 +158,24 @@ class EventGeneratorApp:
               else "{:<4}{}{:<4}".format(min, sep, max)
         a = self.args
         h = a.helicity
-        if h:
-            h = f"{h:+}"
-        else:
-            h = 'random +1 or -1'
+        h = f"{h:+}" if h        \
+            else 'random +1 or -1'
+        dsigma_upper_type = "manually specified"  \
+            if a.dsigma_upper is not None         \
+            else "calculated"
         return (
             self.parser.description + "\n"
             f"Author: {__author__}\n"
             f"\n"
             f"Started:         {time.asctime()}\n"
             f"Channel:         {a.channel}\n"
-            f"W  range:        {format_range(a.wmin,  a.wmax)} GeV\n"
-            f"Q² range:        {format_range(a.q2min, a.q2max)} GeV²\n"
-            f"cos θ range:     {format_range(a.ctmin, a.ctmax)}\n"
+            f"W  range:        {format_range(a.wmin,   a.wmax)} GeV\n"
+            f"Q² range:        {format_range(a.q2min,  a.q2max)} GeV²\n"
+            f"cos θ range:     {format_range(a.ctmin,  a.ctmax)}\n"
             f"φ range:         {format_range(a.phimin, a.phimax)} degrees\n"
             f"E beam:          {a.ebeam} GeV\n"
             f"Helicity:        {h}\n"
-            f"DCS upper limit: {a.dsigma_upper} µb·GeV⁻³ (manually specified)\n"
+            f"DCS upper limit: {self.evgen.dsigma_upper} µb·GeV⁻³ ({dsigma_upper_type})\n"
             f"Events number:   {a.events}\n"
         )
 
