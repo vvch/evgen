@@ -104,13 +104,20 @@ class EventGeneratorApp:
         except ModuleNotFoundError:
             pass
 
+        self.EventGeneratorClass = EventGenerator
+        self.args = self.get_arg_parser().parse()
+        self.evgen = EventGenerator(self.args)
+        print(self.get_header(), end=None)
+        logger.info(self.args)
+
+    def get_arg_parser(self):
         from configargparse import ArgumentParser, DefaultsFormatter
         parser = ArgumentParser(
             fromfile_prefix_chars='@',
             default_config_files=['evgen.conf'],
             formatter_class=DefaultsFormatter,
             add_config_file_help=False,
-            description=EventGenerator.__doc__
+            description=self.EventGeneratorClass.__doc__
                 or self.__doc__ or EventGeneratorApp.__doc__)
         parser.add('-c', '--config', is_config_file=True,
             help='Config file path')
@@ -136,30 +143,18 @@ class EventGeneratorApp:
             help='phi max, deg')
         parser.add('--dsigma-upper', '-U', type=float,
             help='Upper limit for differential cross-section value, mcb')
-        parser.add('--helicity', '-H', type=int, default=0,
-            choices=[-1, 0, 1],
-            help='Electron helicity (use 0 for random choice)')
-        parser.add('--channel', '-C', type=str, required=True,
-            choices=['pi+ n', 'pi0 p', 'pi- p', 'pi0 n'],
-            help='Channel')
         parser.add('--interval', '-T', type=float, default=1,
             help='Output time interval, seconds')
         parser.add('--output', '-o', type=str, default='wq2.dat',
             help='Output file name')
         self.parser = parser
-        self.args = parser.parse()
-        self.evgen = EventGenerator(self.args)
-        print(self.get_header(), end=None)
-        logger.info(self.args)
+        return parser
 
     def get_header(self):
         def format_range(min, max, sep=' - '):
             return "{:<4}".format(min) if min == max  \
               else "{:<4}{}{:<4}".format(min, sep, max)
         a = self.args
-        h = a.helicity
-        h = f"{h:+}" if h        \
-            else 'random +1 or -1'
         dsigma_upper_type = "manually specified"  \
             if a.dsigma_upper is not None         \
             else "calculated"
@@ -168,13 +163,11 @@ class EventGeneratorApp:
             f"Author: {__author__}\n"
             f"\n"
             f"Started:         {time.asctime()}\n"
-            f"Channel:         {a.channel}\n"
             f"W  range:        {format_range(a.wmin,   a.wmax)} GeV\n"
             f"Q² range:        {format_range(a.q2min,  a.q2max)} GeV²\n"
             f"cos θ range:     {format_range(a.ctmin,  a.ctmax)}\n"
             f"φ range:         {format_range(a.phimin, a.phimax)} degrees\n"
-            f"E beam:          {a.ebeam} GeV\n"
-            f"Helicity:        {h}\n"
+            f"Beam energy:     {a.ebeam} GeV\n"
             f"DCS upper limit: {self.evgen.dsigma_upper} µb·GeV⁻³ ({dsigma_upper_type})\n"
             f"Events number:   {a.events}\n"
         )
