@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 import sys
 import numpy as np
-from ROOT import TCanvas, TH1F, TH2F, gROOT
+from ROOT import TCanvas, TH1D, TH2D, gROOT
 
 
 W_min  = 1.08
@@ -11,18 +11,18 @@ Q2_max = 5
 
 W_margin  = 0.005
 Q2_margin = 0.025
-W_bins = 186
+W_bins  = 186
 Q2_bins = 202
 
 
 class Hists4:
     def __init__(self):
-        self.h_WQ2 = TH2F("wq2", ";W, GeV;Q^{2}, GeV^{2}",
-            W_bins, W_min-W_margin,   W_max+W_margin,
+        self.h_WQ2 = TH2D("wq2", ";W, GeV;Q^{2}, GeV^{2}",
+            W_bins,  W_min-W_margin,   W_max+W_margin,
             Q2_bins, Q2_min-Q2_margin, Q2_max+Q2_margin)
-        self.h_W = TH1F("w", ";W, GeV",
+        self.h_W = TH1D("w", ";W, GeV",
             W_bins, W_min, W_max)
-        self.h_Q2 = TH1F("q2", ";Q^{2}, GeV^{2}",
+        self.h_Q2 = TH1D("q2", ";Q^{2}, GeV^{2}",
             Q2_bins, Q2_min, Q2_max)
         self.Fill = np.vectorize(self.FillScalar)
 
