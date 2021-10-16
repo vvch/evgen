@@ -2,8 +2,7 @@
 """
 Base event generator framework, independent of cross-section calculation method
 """
-import sys, time
-import re
+import os, sys, time, re
 import numpy as np
 from collections import namedtuple
 import logging
@@ -107,16 +106,19 @@ class EventGeneratorApp:
         from configargparse import ArgumentParser, DefaultsFormatter
         parser = ArgumentParser(
             fromfile_prefix_chars='@',
-            default_config_files=['evgen.conf'],
+            default_config_files=[
+                os.path.join(sys.path[0], 'evgen.conf'),
+                'evgen.conf'
+            ],
             formatter_class=DefaultsFormatter,
             add_config_file_help=False,
             description=EventGenerator.__doc__
                 or self.__doc__ or EventGeneratorApp.__doc__)
         parser.add('-c', '--config', is_config_file=True,
             help='Config file path')
-        parser.add('--events', '-n', '-N', type=int,
+        parser.add('--events', '-n', '-N', type=int, required=True,
             help='Number of events to generate')
-        parser.add('--ebeam', '-E', type=float,
+        parser.add('--ebeam', '-E', type=float, required=True,
             help='Beam energy, GeV')
         parser.add('--wmin', type=float, default=1.1,
             help='W min, GeV')
@@ -138,7 +140,7 @@ class EventGeneratorApp:
             help='Upper limit for differential cross-section value, mcb')
         parser.add('--helicity', '-H', type=int, default=0,
             choices=[-1, 0, 1],
-            help='Electron helicity (use 0 for random choice)')
+            help='Electron helicity (use 0 for random choice in each event)')
         parser.add('--channel', '-C', type=str, required=True,
             choices=['pi+ n', 'pi0 p', 'pi- p', 'pi0 n'],
             help='Channel')

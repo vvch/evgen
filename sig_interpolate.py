@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-import sys
+import os, sys
 import numpy as np
 import scipy.interpolate
 import logging
@@ -129,7 +129,8 @@ class InterpSigmaLinearND(InterpSigma):
 
 class InterpSigmaCached(InterpSigma):
     def __init__(self, model, channel):
-        fname = f"cache/{model}_{channel}.npz"
+        fname = os.path.join(sys.path[0], 'cache',
+            f"{model}_{channel}.npz")
         try:
             npz = np.load(fname)
             self.data = npz['amplitudes']
@@ -162,7 +163,8 @@ import pickle
 # amplitudes multiplied to special correction factor
 class InterpSigmaCorrectedCached(InterpSigma):
     def __init__(self, model, channel):
-        fname = f"cache/{model}_{channel}_prepared_interpolator_cache.pickle"
+        fname = os.path.join(sys.path[0], 'cache',
+            f"{model}_{channel}_prepared_interpolator_cache.pickle")
         try:
             with open(fname, 'rb') as fh:
                 logger.info(f"Loading data from file cache '{fname}'")
