@@ -90,7 +90,9 @@ class EventGeneratorBase:
 
 class EventGeneratorApp:
     """Event Generator"""
-    def __init__(self, EventGenerator, log_level=logging.INFO,
+    EventGeneratorClass = EventGeneratorBase
+
+    def __init__(self, EventGenerator=None, log_level=logging.INFO,
                  log_fmt='%(asctime)s %(levelname)s %(message)s'):
         logging.basicConfig(level=log_level, format=log_fmt, datefmt='%H:%M:%S')
         try:
@@ -104,11 +106,12 @@ class EventGeneratorApp:
         except ModuleNotFoundError:
             pass
 
-        self.EventGeneratorClass = EventGenerator
+        if EventGenerator:
+            self.EventGeneratorClass = EventGenerator
         self.args = self.get_arg_parser().parse()
-        self.evgen = EventGenerator(self.args)
-        print(self.get_header(), end=None)
-        logger.info(self.args)
+        self.evgen = self.EventGeneratorClass(self.args)
+        print(self.get_header())
+        logger.debug(self.args)
 
     def get_arg_parser(self):
         from configargparse import ArgumentParser, DefaultsFormatter
@@ -192,16 +195,25 @@ class EventGeneratorApp:
     def get_footer_commented(self, timer):
         return '#\n' + re.sub(r'^', '#  ', self.get_footer(timer), 0, re.M)
 
-    def run(self):
-        #hist = Hists4()
-        from estimate_time import EstimateTime
-        timer = EstimateTime(self.evgen.events)
-        timer.min_interval_to_output = self.args.interval
+    def save_events(self):
+        if self.output:
+            np.savetxt(self.output, self.events)
 
-        events = []
-        with open(self.args.output, 'w') as output:
-            output.write(self.get_header_commented())
-            for event in self.evgen.generate_events():
+    def run(self):
+        args = self.args
+        evgen = self.evgen
+        #hist = Hists4()
+        from contextlib import AbstractContextManager
+        from estimate_time import EstimateTime
+        timer = EstimateTime(evgen.events)
+        timer.min_interval_to_output = args.interval
+
+        events = self.events = []
+        with open(args.output, 'w') as output:
+            self.output = output
+            if output:
+                output.write(self.get_header_commented())
+            for event in evgen.generate_events():
                 events.append(event)
 
                 timer.update()
@@ -211,33 +223,34 @@ class EventGeneratorApp:
                             timer.percent, timer.counter,
                             timer.elapsed, timer.estimated,
                             timer.speed * 60)
-                    if 1:
-                        np.savetxt(output, events)
-                        events.clear()
+                    self.save_events()
+                    events.clear()
 
-            np.savetxt(output, events)
+            self.save_events()
+            #events.clear()
             #hist.save()
-            output.write(self.get_footer_commented(timer))
+            if output:
+                output.write(self.get_footer_commented(timer))
             logger.info(
                 "Generated: %d events, elapsed time: %s",
                 timer.counter, timer.elapsed)
             logger.info(
                 "Filtered %d differential cross-section values"
                 " at all: min=%g, max=%g [mcb*GeV^-3]",
-                self.evgen.raw_events_counter,
-                self.evgen.min_dsigma, self.evgen.max_dsigma)
-            if self.evgen.dsigma_exceed_counter:
+                evgen.raw_events_counter,
+                evgen.min_dsigma, evgen.max_dsigma)
+            if evgen.dsigma_exceed_counter:
                 logger.warning(
                     "Cross-section %d times (of %d, %.3g%%) exceeded upper limit %g,"
                     " max=%g [mcb*GeV^-3] on %s",
-                    self.evgen.dsigma_exceed_counter, self.evgen.raw_events_counter,
-                    self.evgen.dsigma_exceed_counter / self.evgen.raw_events_counter,
-                    self.evgen.dsigma_upper, self.evgen.max_dsigma,
-                    str(self.evgen.max_dsigma_event))
+                    evgen.dsigma_exceed_counter, evgen.raw_events_counter,
+                    evgen.dsigma_exceed_counter / evgen.raw_events_counter,
+                    evgen.dsigma_upper, evgen.max_dsigma,
+                    str(evgen.max_dsigma_event))
         logger.debug("Done")
 
     @classmethod
-    def launch(cls, evgenclass, log_level=logging.INFO):
+    def launch(cls, evgenclass=None, log_level=logging.INFO):
         try:
             cls(evgenclass, log_level).run()
         except (NotImplementedError, ModuleNotFoundError) as e:
@@ -249,7 +262,10 @@ class EventGeneratorApp:
 
 
 class EventGeneratorTest(EventGeneratorBase):
-    """Test event generator with simple distribution function instead of real cross-section"""
+    """
+    Test event generator with simple distribution function
+    instead of real cross-section
+    """
     def get_dsigma(self, event):
         return np.sin(event.Q2*3)*np.cos(event.W*3)
     def get_dsigma_upper(self):

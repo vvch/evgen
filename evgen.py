@@ -3,6 +3,7 @@ import logging
 logger = logging.getLogger(__name__)
 import re
 import numpy as np
+import configargparse
 from evgen_base import EventGeneratorBase, EventGeneratorApp
 from sig_interpolate import InterpSigmaCorrectedCached
 
@@ -23,6 +24,8 @@ class EventGeneratorFW(EventGeneratorBase):
 
 
 class EventGeneratorApp(EventGeneratorApp):
+    EventGeneratorClass = EventGeneratorFW
+
     def get_header(self):
         header = super().get_header()
         a = self.args
@@ -46,8 +49,25 @@ class EventGeneratorApp(EventGeneratorApp):
         parser.add('--helicity', '-H', type=int, default=0,
             choices=[-1, 0, 1],
             help='Electron helicity (use 0 for random choice)')
+        parser.add('--lund', '-l', type=configargparse.FileType('w'),
+            help='LUND output file name')
         return parser
+
+    def run(self):
+        args = self.args
+        if args.lund:
+            from lund import Lund
+            self.lund = Lund(args.channel, args.ebeam)
+            with args.lund:
+                super().run()
+        else:
+            super().run()
+
+    def save_events(self):
+        super().save_events()
+        if self.args.lund:
+            self.lund.write_events(self.args.lund, self.events)
 
 
 if __name__=='__main__':
-    EventGeneratorApp.launch(EventGeneratorFW)
+    EventGeneratorApp.launch()
