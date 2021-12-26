@@ -10,6 +10,8 @@ import hep.amplitudes
 
 
 class InterpSigma:
+    available_channels = ['pi+ n', 'pi0 p', 'pi- p', 'pi0 n']
+
     def __init__(self, Amplitude, model, channel):
         data = Amplitude.query.filter_by(
             model=model,
@@ -231,8 +233,9 @@ if __name__=="__main__":
         help='Do not multiply to virtual photon flux')
     parser.add_argument('--no-plot', action="store_true",
         help='Skip plot')
-    parser.add_argument('--channel', '-C', type=str, default='pi0 p',
-        choices=['pi+ n', 'pi0 p', 'pi- p', 'pi0 n'],
+    parser.add_argument('--channel', '-C', type=str,
+        default=InterpSigmaCorrectedCached.available_channels[0],
+        choices=InterpSigmaCorrectedCached.available_channels,
         help='Channel')
     parser.add_argument('--output', '-o', type=str,
         help='Output html file name (show in browser if empty)')

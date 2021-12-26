@@ -2,7 +2,8 @@
 """
 Base event generator framework, independent of cross-section calculation method
 """
-import os, sys, time, re
+import sys, time
+import re
 import numpy as np
 from collections import namedtuple
 import logging
@@ -89,7 +90,9 @@ class EventGeneratorBase:
 
 class EventGeneratorApp:
     """Event Generator"""
-    def __init__(self, EventGenerator, log_level=logging.INFO,
+    EventGeneratorClass = EventGeneratorBase
+
+    def __init__(self, EventGenerator=None, log_level=logging.INFO,
                  log_fmt='%(asctime)s %(levelname)s %(message)s'):
         logging.basicConfig(level=log_level, format=log_fmt, datefmt='%H:%M:%S')
         try:
@@ -103,22 +106,27 @@ class EventGeneratorApp:
         except ModuleNotFoundError:
             pass
 
+        if EventGenerator:
+            self.EventGeneratorClass = EventGenerator
+        self.args = self.get_arg_parser().parse()
+        self.evgen = self.EventGeneratorClass(self.args)
+        print(self.get_header())
+        logger.debug(self.args)
+
+    def get_arg_parser(self):
         from configargparse import ArgumentParser, DefaultsFormatter
         parser = ArgumentParser(
             fromfile_prefix_chars='@',
-            default_config_files=[
-                os.path.join(sys.path[0], 'evgen.conf'),
-                'evgen.conf'
-            ],
+            default_config_files=['evgen.conf'],
             formatter_class=DefaultsFormatter,
             add_config_file_help=False,
-            description=EventGenerator.__doc__
+            description=self.EventGeneratorClass.__doc__
                 or self.__doc__ or EventGeneratorApp.__doc__)
         parser.add('-c', '--config', is_config_file=True,
             help='Config file path')
-        parser.add('--events', '-n', '-N', type=int, required=True,
+        parser.add('--events', '-n', '-N', type=int,
             help='Number of events to generate')
-        parser.add('--ebeam', '-E', type=float, required=True,
+        parser.add('--ebeam', '-E', type=float,
             help='Beam energy, GeV')
         parser.add('--wmin', type=float, default=1.1,
             help='W min, GeV')
@@ -138,30 +146,18 @@ class EventGeneratorApp:
             help='phi max, deg')
         parser.add('--dsigma-upper', '-U', type=float,
             help='Upper limit for differential cross-section value, mcb')
-        parser.add('--helicity', '-H', type=int, default=0,
-            choices=[-1, 0, 1],
-            help='Electron helicity (use 0 for random choice in each event)')
-        parser.add('--channel', '-C', type=str, required=True,
-            choices=['pi+ n', 'pi0 p', 'pi- p', 'pi0 n'],
-            help='Channel')
         parser.add('--interval', '-T', type=float, default=1,
             help='Output time interval, seconds')
         parser.add('--output', '-o', type=str, default='wq2.dat',
             help='Output file name')
         self.parser = parser
-        self.args = parser.parse()
-        self.evgen = EventGenerator(self.args)
-        print(self.get_header(), end=None)
-        logger.info(self.args)
+        return parser
 
     def get_header(self):
         def format_range(min, max, sep=' - '):
             return "{:<4}".format(min) if min == max  \
               else "{:<4}{}{:<4}".format(min, sep, max)
         a = self.args
-        h = a.helicity
-        h = f"{h:+}" if h        \
-            else 'random +1 or -1'
         dsigma_upper_type = "manually specified"  \
             if a.dsigma_upper is not None         \
             else "calculated"
@@ -170,13 +166,11 @@ class EventGeneratorApp:
             f"Author: {__author__}\n"
             f"\n"
             f"Started:         {time.asctime()}\n"
-            f"Channel:         {a.channel}\n"
             f"W  range:        {format_range(a.wmin,   a.wmax)} GeV\n"
             f"Q² range:        {format_range(a.q2min,  a.q2max)} GeV²\n"
             f"cos θ range:     {format_range(a.ctmin,  a.ctmax)}\n"
             f"φ range:         {format_range(a.phimin, a.phimax)} degrees\n"
-            f"E beam:          {a.ebeam} GeV\n"
-            f"Helicity:        {h}\n"
+            f"Beam energy:     {a.ebeam} GeV\n"
             f"DCS upper limit: {self.evgen.dsigma_upper} µb·GeV⁻³ ({dsigma_upper_type})\n"
             f"Events number:   {a.events}\n"
         )
@@ -201,16 +195,25 @@ class EventGeneratorApp:
     def get_footer_commented(self, timer):
         return '#\n' + re.sub(r'^', '#  ', self.get_footer(timer), 0, re.M)
 
-    def run(self):
-        #hist = Hists4()
-        from estimate_time import EstimateTime
-        timer = EstimateTime(self.evgen.events)
-        timer.min_interval_to_output = self.args.interval
+    def save_events(self):
+        if self.output:
+            np.savetxt(self.output, self.events)
 
-        events = []
-        with open(self.args.output, 'w') as output:
-            output.write(self.get_header_commented())
-            for event in self.evgen.generate_events():
+    def run(self):
+        args = self.args
+        evgen = self.evgen
+        #hist = Hists4()
+        from contextlib import AbstractContextManager
+        from estimate_time import EstimateTime
+        timer = EstimateTime(evgen.events)
+        timer.min_interval_to_output = args.interval
+
+        events = self.events = []
+        with open(args.output, 'w') as output:
+            self.output = output
+            if output:
+                output.write(self.get_header_commented())
+            for event in evgen.generate_events():
                 events.append(event)
 
                 timer.update()
@@ -220,33 +223,34 @@ class EventGeneratorApp:
                             timer.percent, timer.counter,
                             timer.elapsed, timer.estimated,
                             timer.speed * 60)
-                    if 1:
-                        np.savetxt(output, events)
-                        events.clear()
+                    self.save_events()
+                    events.clear()
 
-            np.savetxt(output, events)
+            self.save_events()
+            #events.clear()
             #hist.save()
-            output.write(self.get_footer_commented(timer))
+            if output:
+                output.write(self.get_footer_commented(timer))
             logger.info(
                 "Generated: %d events, elapsed time: %s",
                 timer.counter, timer.elapsed)
             logger.info(
                 "Filtered %d differential cross-section values"
                 " at all: min=%g, max=%g [mcb*GeV^-3]",
-                self.evgen.raw_events_counter,
-                self.evgen.min_dsigma, self.evgen.max_dsigma)
-            if self.evgen.dsigma_exceed_counter:
+                evgen.raw_events_counter,
+                evgen.min_dsigma, evgen.max_dsigma)
+            if evgen.dsigma_exceed_counter:
                 logger.warning(
                     "Cross-section %d times (of %d, %.3g%%) exceeded upper limit %g,"
                     " max=%g [mcb*GeV^-3] on %s",
-                    self.evgen.dsigma_exceed_counter, self.evgen.raw_events_counter,
-                    self.evgen.dsigma_exceed_counter / self.evgen.raw_events_counter,
-                    self.evgen.dsigma_upper, self.evgen.max_dsigma,
-                    str(self.evgen.max_dsigma_event))
+                    evgen.dsigma_exceed_counter, evgen.raw_events_counter,
+                    evgen.dsigma_exceed_counter / evgen.raw_events_counter,
+                    evgen.dsigma_upper, evgen.max_dsigma,
+                    str(evgen.max_dsigma_event))
         logger.debug("Done")
 
     @classmethod
-    def launch(cls, evgenclass, log_level=logging.INFO):
+    def launch(cls, evgenclass=None, log_level=logging.INFO):
         try:
             cls(evgenclass, log_level).run()
         except (NotImplementedError, ModuleNotFoundError) as e:
@@ -258,7 +262,10 @@ class EventGeneratorApp:
 
 
 class EventGeneratorTest(EventGeneratorBase):
-    """Test event generator with simple distribution function instead of real cross-section"""
+    """
+    Test event generator with simple distribution function
+    instead of real cross-section
+    """
     def get_dsigma(self, event):
         return np.sin(event.Q2*3)*np.cos(event.W*3)
     def get_dsigma_upper(self):

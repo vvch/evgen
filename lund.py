@@ -156,6 +156,10 @@ class Lund:
         #lund = lund.format(**vars())
         return lund
 
+    def write_events(self, output_file, events):
+        for ev in events:
+            output_file.write(self.event(ev))
+
 
 if __name__ =='__main__':
     import sys
@@ -176,6 +180,4 @@ if __name__ =='__main__':
 
     lund = Lund(args.channel, args.ebeam)
     events = np.loadtxt(args.file)
-    for ev in (events):
-        #print(ev)
-        print(lund.event(ev), end='', file=args.output)
+    lund.write_events(args.output, events)
