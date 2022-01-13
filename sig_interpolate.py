@@ -13,6 +13,10 @@ class InterpSigma:
     available_channels = ['pi+ n', 'pi0 p', 'pi- p', 'pi0 n']
 
     def __init__(self, Amplitude, model, channel):
+        self.load_from_db()
+        self.init_interpolator()
+
+    def load_from_db(self, Amplitude, model, channel):
         data = Amplitude.query.filter_by(
             model=model,
             channel=channel,
@@ -48,31 +52,36 @@ class InterpSigma:
             ])
                 for p in t[3:3+12].T ] )
 
-        logger.info('Data loaded')
+        logger.info('Data loaded from the DB')
         logger.debug(f'SHAPE OF POINTS: {self.points.shape}')
         logger.debug(f'POINTS:\n{self.points}')
         logger.debug(f'SHAPE OF DATA: {self.data.shape}')
         logger.debug(f'DATA:\n{self.data}')
 
+    def load_from_db_by_names(self, model, channel):
+        from clasfw.models import Amplitude, Model, Channel
+        from clasfw.app import create_app
+        app = create_app()
+        with app.test_request_context():
+            self.load_from_db(Amplitude,
+                Model.by_name(model),
+                Channel.by_name(channel))
+
+    def init_interpolator(self):
+        logger.debug('Interpolator initialization')
+        self.interpolator = scipy.interpolate.LinearNDInterpolator(
+            self.points, self.data)
+        logger.debug('Interpolator initialized')
 
     def correct_maid_H56(self):
-        logger.info('Correct MAID data')
+        logger.info('Correcting MAID data')
         for i in range(len(self.points)):
             W, Q2 = self.points[i, 0:2]
             self.data[i, 4:6] *= hep.amplitudes.H56_maid_correction_factor(W, Q2)  ##  H5, H6
 
-
     def interp_H(self, w, q2, cos_theta):
-        grid_w, grid_q2, grid_cθ = np.array(np.meshgrid(
-            w, q2, cos_theta
-        ))
-        # )).transpose((0, 2, 1))
-
-        grid_R = scipy.interpolate.griddata(
-            self.points, self.data,
-            (grid_w, grid_q2, grid_cθ),
-            method='linear')
-        return grid_R
+        grid_w, grid_q2, grid_cθ = np.meshgrid(w, q2, cos_theta)
+        return self.interpolator((grid_w, grid_q2, grid_cθ))
 
     def interp_R(self, w, q2, cos_theta):
         grid_R = self.interp_H(w, q2, cos_theta)
@@ -106,8 +115,8 @@ class InterpSigma:
         return hep.Γ_ν(W, Q2, Eb, ε) * self.interp_dsigma_eps(
             W, Q2, cos_theta, phi, ε, h)
 
-    # electron scattering cross-section
     def interp_dsigma_e(self, *args, **kvargs):
+        """Electron scattering cross-section"""
         return np.ravel(self.interp_dsigma_e_v(*args, **kvargs))[0]
 
     def dsigma_minmax(self, Eb, h=1):
@@ -116,22 +125,9 @@ class InterpSigma:
             " not implemented yet")
 
 
-class InterpSigmaLinearND(InterpSigma):
-    def __init__(self, Amplitude, model, channel):
-        super().__init__(Amplitude, model, channel)
-        logger.debug('Interpolator initialization')
-        self.interpolator = scipy.interpolate.LinearNDInterpolator(
-            self.points, self.data)
-        logger.debug('Interpolator initialized')
-
-    def interp_H(self, w, q2, cos_theta):
-        grid_w, grid_q2, grid_cθ = np.meshgrid(w, q2, cos_theta)
-        return self.interpolator((grid_w, grid_q2, grid_cθ))
-
-
 class InterpSigmaCached(InterpSigma):
     def __init__(self, model, channel):
-        fname = os.path.join(sys.path[0], 'cache',
+        fname = os.path.join(os.path.dirname(__file__), 'cache',
             f"{model}_{channel}.npz")
         try:
             npz = np.load(fname)
@@ -140,32 +136,19 @@ class InterpSigmaCached(InterpSigma):
             #logger.info(self.data)
             logger.info(f"Data loaded from file cache '{fname}'")
         except FileNotFoundError:
-            from clasfw.models import Amplitude, Model, Channel
-            from clasfw.app import create_app
-            app = create_app()
-            with app.test_request_context():
-                o_model = Model.by_name(model)
-                o_channel = Channel.by_name(channel)
-                super().__init__(Amplitude, o_model, o_channel)
+            self.load_from_db_by_names(model, channel)
             np.savez(fname,
                 amplitudes=self.data,
                 points=self.points)
             logger.info(f"Data saved to cache file '{fname}'")
-        logger.info('Interpolator initialization')
-        self.interpolator = scipy.interpolate.LinearNDInterpolator(
-            self.points, self.data)
-        logger.info('Interpolator initialized')
-
-    def interp_H(self, w, q2, cos_theta):
-        grid_w, grid_q2, grid_cθ = np.meshgrid(w, q2, cos_theta)
-        return self.interpolator((grid_w, grid_q2, grid_cθ))
+        self.init_interpolator()
 
 
 import pickle
 # amplitudes multiplied to special correction factor
 class InterpSigmaCorrectedCached(InterpSigma):
     def __init__(self, model, channel):
-        fname = os.path.join(sys.path[0], 'cache',
+        fname = os.path.join(os.path.dirname(__file__), 'cache',
             f"{model}_{channel}_prepared_interpolator_cache.pickle")
         try:
             with open(fname, 'rb') as fh:
@@ -173,27 +156,13 @@ class InterpSigmaCorrectedCached(InterpSigma):
                 self.interpolator = pickle.load(fh)
             logger.info(f"Data loaded")
         except FileNotFoundError:
-            from clasfw.models import Amplitude, Model, Channel
-            from clasfw.app import create_app
-            app = create_app()
-            with app.test_request_context():
-                o_model = Model.by_name(model)
-                o_channel = Channel.by_name(channel)
-                super().__init__(Amplitude, o_model, o_channel)
-
+            self.load_from_db_by_names(model, channel)
             self.correct_maid_H56()
-
-            logger.info('Interpolator initialization')
-            self.interpolator = scipy.interpolate.LinearNDInterpolator(
-                self.points, self.data)
-            logger.info('Interpolator initialized')
+            self.init_interpolator()
             with open(fname, 'wb') as fh:
                 pickle.dump(self.interpolator, fh, protocol=pickle.HIGHEST_PROTOCOL)
             logger.info(f"Data saved to cache file '{fname}'")
 
-    def interp_H(self, w, q2, cos_theta):
-        grid_w, grid_q2, grid_cθ = np.meshgrid(w, q2, cos_theta)
-        return self.interpolator((grid_w, grid_q2, grid_cθ))
 
 if __name__=="__main__":
     #logging.basicConfig(level=logging.DEBUG)
