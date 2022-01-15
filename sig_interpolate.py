@@ -20,6 +20,10 @@ class InterpSigma:
         data = Amplitude.query.filter_by(
             model=model,
             channel=channel,
+        ).order_by(
+            Amplitude.q2,
+            Amplitude.w,
+            Amplitude.cos_theta,
         ).values(
             Amplitude.w,
             Amplitude.q2,
@@ -31,10 +35,6 @@ class InterpSigma:
             Amplitude.H4r, Amplitude.H4j,
             Amplitude.H5r, Amplitude.H5j,
             Amplitude.H6r, Amplitude.H6j,
-        ).order_by(
-            Amplitude.q2,
-            Amplitude.w,
-            Amplitude.cos_theta,
         )
         t = np.array(list(data))
         if not len(t):
