@@ -24,7 +24,7 @@ class InterpSigma:
             Amplitude.q2,
             Amplitude.w,
             Amplitude.cos_theta,
-        ).values(
+        ).with_entities(
             Amplitude.w,
             Amplitude.q2,
             Amplitude.cos_theta,
@@ -91,6 +91,9 @@ class InterpSigma:
         )
         #grid_R = grid_R[:,:,:,self.qu_index]
         return grid_R
+
+    def interp_dsigma_comps(self, w, q2, cos_theta):
+        return self.interp_R(w, q2, cos_theta) * hep.amplitudes.R_to_dsigma_factor(w, q2)
 
     def interp_dsigma_eps(self, w, q2, cos_theta, phi, eps_T, h=1):
         def ampl_to_dsigma(H):
